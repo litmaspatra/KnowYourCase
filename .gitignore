@@ -1,0 +1,15 @@
+# Android Studio and local machine settings
+/.idea/
+*.iml
+local.properties
+
+# Gradle output
+/.gradle/
+/build/
+/app/build/
+/release/
+
+# Local captures and signing material
+*.jks
+*.keystore
+captures/

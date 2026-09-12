@@ -1,0 +1,5 @@
+-keep class com.knowyourcase.app.data.api.** { *; }
+-keep class com.google.mlkit.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn okhttp3.**

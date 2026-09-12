@@ -1,0 +1,31 @@
+<resources>
+    <!-- Brand -->
+    <color name="primary">#1A3A5C</color>
+    <color name="primary_dark">#0F2340</color>
+    <color name="primary_light">#2E5F8A</color>
+    <color name="accent">#C8932A</color>
+    <color name="accent_light">#F5C969</color>
+
+    <!-- Surface -->
+    <color name="background">#F5F7FA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#EEF2F7</color>
+
+    <!-- Text -->
+    <color name="text_primary">#1A1A2E</color>
+    <color name="text_secondary">#5A6478</color>
+    <color name="text_hint">#9AA3B2</color>
+
+    <!-- Status -->
+    <color name="status_pending">#E67E22</color>
+    <color name="status_disposed">#27AE60</color>
+    <color name="status_default">#7F8C8D</color>
+    <color name="backend_online">#218C5B</color>
+    <color name="backend_offline">#C0392B</color>
+
+    <!-- UI -->
+    <color name="divider">#E0E6EE</color>
+    <color name="card_shadow">#1A000000</color>
+    <color name="scanner_overlay">#99000000</color>
+    <color name="scanner_border">#C8932A</color>
+</resources>

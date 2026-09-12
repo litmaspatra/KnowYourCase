@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.KnowYourCase" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#2E5F8A</item>
+        <item name="colorPrimaryDark">#1A3A5C</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:windowBackground">#0F1923</item>
+        <item name="android:statusBarColor">#0A1520</item>
+    </style>
+</resources>
