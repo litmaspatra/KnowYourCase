@@ -37,7 +37,7 @@
     <string name="enter_cnr_manually">Enter CNR manually</string>
     <string name="choose_photo">Choose photo</string>
     <string name="cnr_not_found_in_photo">No valid CNR number was found in that photo.</string>
-    <string name="ping_backend">PING</string>
-    <string name="backend_online_description">Backend is online. Tap to check again.</string>
-    <string name="backend_offline_description">Backend is offline. Tap to wake it.</string>
+    <string name="ping_backend">Backend status</string>
+    <string name="backend_online_description">Backend is online. Tap to check now.</string>
+    <string name="backend_offline_description">Backend is unavailable. Tap to retry.</string>
 </resources>
