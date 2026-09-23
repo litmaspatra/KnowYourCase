@@ -115,7 +115,7 @@ class AppUpdateManager(
             .setDescription("Downloading app update")
             .setMimeType("application/vnd.android.package-archive")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationUri(Uri.fromFile(apk))
+            .setDestinationInExternalFilesDir(activity, Environment.DIRECTORY_DOWNLOADS, release.fileName)
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(true)
 
