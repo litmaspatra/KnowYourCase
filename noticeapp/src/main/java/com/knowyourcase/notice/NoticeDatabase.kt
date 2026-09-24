@@ -20,7 +20,7 @@ data class NoticeEntity(
     val nextHearing: String = "",
     val caseStage: String = "",
     val processServer: String = "",
-    val serviceStatus: String = "NOT_SERVED",
+    val serviceStatus: String = "PENDING",
     val fetchedState: String = "FETCHING",
     val lastError: String = "",
     val scannedAt: Long = System.currentTimeMillis(),
@@ -42,7 +42,7 @@ interface NoticeDao {
     suspend fun recoverInterruptedFetches()
 }
 
-@Database(entities = [NoticeEntity::class], version = 3, exportSchema = false)
+@Database(entities = [NoticeEntity::class], version = 4, exportSchema = false)
 abstract class NoticeDatabase : RoomDatabase() {
     abstract fun notices(): NoticeDao
     companion object {
@@ -55,8 +55,14 @@ abstract class NoticeDatabase : RoomDatabase() {
 
         private val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Product rule: service has exactly two states.
                 db.execSQL("UPDATE notices SET serviceStatus = 'NOT_SERVED' WHERE serviceStatus != 'SERVED'")
+            }
+        }
+
+        private val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Two-state debug builds used NOT_SERVED for all incomplete work.
+                db.execSQL("UPDATE notices SET serviceStatus = 'PENDING' WHERE serviceStatus = 'NOT_SERVED'")
             }
         }
 
@@ -67,7 +73,7 @@ abstract class NoticeDatabase : RoomDatabase() {
                     context.applicationContext,
                     NoticeDatabase::class.java,
                     "notice-tracker.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
             }
     }
 }
