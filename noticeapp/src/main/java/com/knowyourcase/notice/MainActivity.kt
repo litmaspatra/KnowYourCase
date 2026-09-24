@@ -96,9 +96,38 @@ class MainActivity : AppCompatActivity() {
 
     private fun applySavedTheme() {
         when (getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_THEME, "system")) {
-            "light" -> AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-            "dark" -> AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-            else -> AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+            "blue" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+                setTheme(R.style.Theme_NoticeTracker_Blue)
+            }
+            "mono" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+                setTheme(R.style.Theme_NoticeTracker_Mono)
+            }
+            "bw" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+                setTheme(R.style.Theme_NoticeTracker_BlackWhite)
+            }
+            "midnight" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+                setTheme(R.style.Theme_NoticeTracker_Midnight)
+            }
+            "ember" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+                setTheme(R.style.Theme_NoticeTracker_Ember)
+            }
+            "light" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+                setTheme(R.style.Theme_NoticeTracker)
+            }
+            "dark" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+                setTheme(R.style.Theme_NoticeTracker)
+            }
+            else -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+                setTheme(R.style.Theme_NoticeTracker)
+            }
         }
     }
 
@@ -285,64 +314,67 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun noticeListRow(n: NoticeEntity) = card().apply {
+        isClickable = true
+        setOnClickListener { showNotice(n) }
         addView(LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
+            setPadding(dp(16), dp(14), dp(16), dp(14))
 
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-
-                addView(LinearLayout(this@MainActivity).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setOnClickListener { showNotice(n) }
-                    addView(TextView(this@MainActivity).apply {
-                        text = n.caseNumber.ifBlank { n.cnr }
-                        textSize = 15f
-                        setTypeface(typeface, Typeface.BOLD)
-                    })
-                    addView(TextView(this@MainActivity).apply {
-                        text = n.caseTitle.ifBlank {
-                            when (n.fetchedState) {
-                                "FETCHING" -> "Fetching case details…"
-                                "RETRY_REQUIRED" -> "Fetch failed"
-                                else -> "Queued for processing…"
-                            }
-                        }
-                        textSize = 13f
-                        alpha = .72f
-                        setPadding(0, dp(3), 0, 0)
-                    })
+                addView(TextView(this@MainActivity).apply {
+                    text = n.caseNumber.ifBlank { n.cnr }
+                    textSize = 17f
+                    setTypeface(typeface, Typeface.BOLD)
                 }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-
                 addView(TextView(this@MainActivity).apply {
                     text = when (n.serviceStatus) {
                         "SERVED" -> "Served"
                         "UNSERVED" -> "Unserved"
                         else -> statusLabel(n)
                     }
-                    textSize = 11f
-                    setPadding(dp(8), dp(4), dp(8), dp(4))
-                    background = ContextCompat.getDrawable(this@MainActivity,
-                        if (n.serviceStatus == "SERVED" || n.serviceStatus == "UNSERVED") R.drawable.bg_chip_complete else R.drawable.bg_chip_pending)
+                    textSize = 12f
+                    setTypeface(typeface, Typeface.BOLD)
+                    setPadding(dp(10), dp(5), dp(10), dp(5))
+                    background = ContextCompat.getDrawable(
+                        this@MainActivity,
+                        if (n.serviceStatus == "PENDING") R.drawable.bg_chip_pending
+                        else R.drawable.bg_chip_complete
+                    )
                 })
             })
 
-            val meta = buildString {
-                if (n.nextHearing.isNotBlank()) append(n.nextHearing)
-                if (n.processServer.isNotBlank()) {
-                    if (isNotEmpty()) append("  •  ")
-                    append(n.processServer)
-                } else {
-                    if (isNotEmpty()) append("  •  ")
-                    append("Unassigned")
-                }
-            }
             addView(TextView(this@MainActivity).apply {
-                text = meta
-                textSize = 12f
-                alpha = .6f
-                setPadding(0, dp(6), 0, dp(8))
+                text = n.caseTitle.ifBlank {
+                    when (n.fetchedState) {
+                        "FETCHING" -> "Fetching case details…"
+                        "RETRY_REQUIRED" -> "Fetch failed — tap Refresh"
+                        else -> "Queued for processing…"
+                    }
+                }
+                textSize = 14f
+                alpha = .78f
+                setPadding(0, dp(6), 0, dp(10))
+            })
+
+            if (n.nextHearing.isNotBlank()) {
+                addView(TextView(this@MainActivity).apply {
+                    text = "▣  Next hearing  " + n.nextHearing
+                    textSize = 13f
+                    setTypeface(typeface, Typeface.BOLD)
+                    setPadding(0, 0, 0, dp(7))
+                })
+            }
+
+            addView(TextView(this@MainActivity).apply {
+                text = if (n.processServer.isBlank())
+                    "♟  Process server: Unassigned"
+                else
+                    "♟  Process server: " + n.processServer
+                textSize = 13f
+                alpha = .72f
+                setPadding(0, 0, 0, dp(10))
             })
 
             val actions = LinearLayout(this@MainActivity).apply {
@@ -350,44 +382,66 @@ class MainActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER_VERTICAL
             }
 
-            actions.addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            actions.addView(MaterialButton(
+                this@MainActivity,
+                null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle
+            ).apply {
                 text = if (n.processServer.isBlank()) "Assign" else "Reassign"
                 isAllCaps = false
-                minHeight = dp(40)
-                setOnClickListener { assignProcessServer(n) }
-            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
+                minHeight = dp(42)
+                setOnClickListener {
+                    assignProcessServer(n)
+                }
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = dp(8)
+            })
 
             if (n.serviceStatus == "PENDING") {
                 actions.addView(MaterialButton(this@MainActivity).apply {
                     text = "Served"
                     isAllCaps = false
-                    minHeight = dp(40)
+                    minHeight = dp(42)
                     setOnClickListener { markServiceStatus(n, "SERVED") }
-                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
-
-                actions.addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginEnd = dp(8)
+                })
+                actions.addView(MaterialButton(
+                    this@MainActivity,
+                    null,
+                    com.google.android.material.R.attr.materialButtonOutlinedStyle
+                ).apply {
                     text = "Unserved"
                     isAllCaps = false
-                    minHeight = dp(40)
+                    minHeight = dp(42)
                     setOnClickListener { markServiceStatus(n, "UNSERVED") }
                 }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             } else {
-                actions.addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                actions.addView(MaterialButton(
+                    this@MainActivity,
+                    null,
+                    com.google.android.material.R.attr.materialButtonOutlinedStyle
+                ).apply {
                     text = "Move to Pending"
                     isAllCaps = false
-                    minHeight = dp(40)
+                    minHeight = dp(42)
                     setOnClickListener { markServiceStatus(n, "PENDING") }
-                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 2f))
             }
 
             addView(actions)
 
             if (n.fetchedState == "FETCHING" || n.fetchedState == "QUEUED") {
-                addView(ProgressBar(this@MainActivity, null, android.R.attr.progressBarStyleHorizontal).apply {
-                    isIndeterminate = true
-                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(4)).apply { topMargin = dp(8) })
+                addView(ProgressBar(
+                    this@MainActivity,
+                    null,
+                    android.R.attr.progressBarStyleHorizontal
+                ).apply { isIndeterminate = true },
+                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(4)).apply {
+                        topMargin = dp(10)
+                    })
             } else if (n.fetchedState == "RETRY_REQUIRED") {
-                addView(outlineButton("↻  Refresh") { retryNotice(n) }, lp(top = 8))
+                addView(outlineButton("↻  Refresh case details") { retryNotice(n) }, lp(top = 9))
             }
         })
     }
@@ -757,8 +811,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showThemeDialog() {
-        val labels = arrayOf("System default", "Light", "Dark")
-        val keys = arrayOf("system", "light", "dark")
+        val labels = arrayOf(
+            "System default",
+            "Blue & White",
+            "Monochrome",
+            "Black & White",
+            "Midnight",
+            "Ember",
+            "Light",
+            "Dark"
+        )
+        val keys = arrayOf("system", "blue", "mono", "bw", "midnight", "ember", "light", "dark")
         val current = keys.indexOf(prefs.getString(KEY_THEME, "system")).coerceAtLeast(0)
         AlertDialog.Builder(this).setTitle("Appearance")
             .setSingleChoiceItems(labels, current) { dialog, which ->
@@ -770,6 +833,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun themeSummary() = when (prefs.getString(KEY_THEME, "system")) {
+        "blue" -> "Blue & White"
+        "mono" -> "Monochrome"
+        "bw" -> "Black & White"
+        "midnight" -> "Midnight"
+        "ember" -> "Ember"
         "light" -> "Light theme"
         "dark" -> "Dark theme"
         else -> "Follow system"
@@ -829,69 +897,82 @@ class MainActivity : AppCompatActivity() {
 
     private fun showProcessServerSettings() {
         val servers = processServers().toMutableList()
-
-        fun reopen() {
-            showProcessServerSettings()
-        }
-
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(6), dp(20), dp(4))
+            setPadding(dp(20), dp(6), dp(20), dp(8))
         }
 
-        if (servers.isEmpty()) {
-            container.addView(TextView(this).apply {
-                text = "No process servers added yet."
-                alpha = .65f
-                setPadding(0, dp(8), 0, dp(12))
-            })
-        } else {
-            servers.forEachIndexed { index, name ->
-                container.addView(LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding(0, dp(6), 0, dp(6))
-                    addView(TextView(this@MainActivity).apply {
-                        text = name
-                        textSize = 15f
-                    }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-                    addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                        text = "Remove"
-                        isAllCaps = false
-                        setOnClickListener {
-                            val updated = servers.toMutableList().apply { removeAt(index) }
-                            saveProcessServers(updated)
-                            reopen()
-                        }
-                    })
+        lateinit var dialog: AlertDialog
+
+        fun renderList() {
+            container.removeAllViews()
+
+            if (servers.isEmpty()) {
+                container.addView(TextView(this).apply {
+                    text = "No process servers added yet."
+                    alpha = .65f
+                    setPadding(0, dp(8), 0, dp(12))
                 })
+            } else {
+                servers.forEachIndexed { index, name ->
+                    container.addView(LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        setPadding(0, dp(5), 0, dp(5))
+                        addView(TextView(this@MainActivity).apply {
+                            text = name
+                            textSize = 15f
+                            setTypeface(typeface, Typeface.BOLD)
+                        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                        addView(MaterialButton(
+                            this@MainActivity,
+                            null,
+                            com.google.android.material.R.attr.materialButtonOutlinedStyle
+                        ).apply {
+                            text = "Remove"
+                            isAllCaps = false
+                            setOnClickListener {
+                                servers.removeAt(index)
+                                saveProcessServers(servers)
+                                renderList()
+                                if (activeTab == TAB_SETTINGS) renderCurrentTab()
+                            }
+                        })
+                    })
+                }
             }
+
+            container.addView(primaryButton("+ Add Process Server") {
+                val input = EditText(this).apply {
+                    hint = "Name"
+                    inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+                }
+                AlertDialog.Builder(this)
+                    .setTitle("Add Process Server")
+                    .setView(input)
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Add") { _, _ ->
+                        val name = input.text.toString().trim()
+                        if (name.isNotBlank() && name !in servers) {
+                            servers.add(name)
+                            saveProcessServers(servers)
+                            renderList()
+                            if (activeTab == TAB_SETTINGS) renderCurrentTab()
+                        }
+                    }.show()
+            }, lp(top = 12))
         }
 
-        container.addView(primaryButton("+ Add Process Server") {
-            val input = EditText(this).apply {
-                hint = "Name"
-                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
-            }
-            AlertDialog.Builder(this)
-                .setTitle("Add Process Server")
-                .setView(input)
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Add") { _, _ ->
-                    val name = input.text.toString().trim()
-                    if (name.isNotBlank()) {
-                        val updated = (servers + name).distinct()
-                        saveProcessServers(updated)
-                        showProcessServerSettings()
-                    }
-                }.show()
-        }, lp(top = 12))
-
-        AlertDialog.Builder(this)
+        renderList()
+        dialog = AlertDialog.Builder(this)
             .setTitle("Process Servers")
             .setView(ScrollView(this).apply { addView(container) })
             .setPositiveButton("Done", null)
-            .show()
+            .create()
+        dialog.setOnDismissListener {
+            if (activeTab == TAB_SETTINGS) renderCurrentTab()
+        }
+        dialog.show()
     }
 
     private fun mergeCase(old: NoticeEntity, rawJson: String): NoticeEntity {
