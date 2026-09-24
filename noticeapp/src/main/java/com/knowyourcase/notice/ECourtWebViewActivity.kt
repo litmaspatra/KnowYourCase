@@ -85,7 +85,7 @@ class ECourtWebViewActivity : AppCompatActivity() {
             finishWithError("No CNR provided"); return
         }
 
-        captchaSolver = CaptchaSolver()
+        captchaSolver = CaptchaSolver(this)
         createBackgroundLookupView()
 
         setupWebView()
@@ -541,7 +541,7 @@ class ECourtWebViewActivity : AppCompatActivity() {
 
         return try {
             val response = withContext(Dispatchers.IO) {
-                RetrofitClient.service.parseCase(ParseRequest(cnrNumber, html))
+                RetrofitClient.service(this@ECourtWebViewActivity).parseCase(ParseRequest(cnrNumber, html))
             }
             val body = response.body()
             if (response.isSuccessful && body != null) Gson().toJson(body)
