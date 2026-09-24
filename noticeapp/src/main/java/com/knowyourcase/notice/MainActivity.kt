@@ -813,7 +813,7 @@ class MainActivity : AppCompatActivity() {
                         text = name
                         textSize = 15f
                     }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-                    addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonTextStyle).apply {
+                    addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
                         text = "Remove"
                         isAllCaps = false
                         setOnClickListener {
