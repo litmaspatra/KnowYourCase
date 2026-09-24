@@ -69,7 +69,7 @@ class BluetoothAudioServer(private val context: Context) {
 
                             val payload = ByteArray(payloadLength)
                             readFully(input, payload)
-                            val wrote = track.write(payload, 0, payload.size, AudioTrack.WRITE_BLOCKING)
+                            val wrote = track!!.write(payload, 0, payload.size, AudioTrack.WRITE_BLOCKING)
                             if (wrote < 0) error("AudioTrack write failed: $wrote")
                         }
                     } finally {
