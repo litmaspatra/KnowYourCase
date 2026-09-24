@@ -14,17 +14,11 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.navArgs
 import com.google.gson.Gson
-import com.google.mlkit.common.model.DownloadConditions
-import com.google.mlkit.common.model.RemoteModelManager
-import com.google.mlkit.nl.translate.TranslateLanguage
-import com.google.mlkit.nl.translate.TranslateRemoteModel
-import com.google.mlkit.nl.translate.Translation
-import com.google.mlkit.nl.translate.TranslatorOptions
 import com.knowyourcase.app.ECourtWebViewActivity
 import com.knowyourcase.app.databinding.FragmentResultBinding
 import com.knowyourcase.app.data.api.CaseResponse
 import com.knowyourcase.app.data.local.CaseCache
-import java.util.concurrent.atomic.AtomicInteger
+import com.knowyourcase.app.translation.LegalHindiTranslator
 
 class ResultFragment : Fragment() {
 
@@ -36,59 +30,16 @@ class ResultFragment : Fragment() {
     private var isHindi = false
     private var backgroundRefreshInFlight = false
     private val originalTexts = LinkedHashMap<TextView, CharSequence>()
-    private val hindiTranslatorDelegate = lazy {
-        Translation.getClient(
-            TranslatorOptions.Builder()
-                .setSourceLanguage(TranslateLanguage.ENGLISH)
-                .setTargetLanguage(TranslateLanguage.HINDI)
-                .build()
-        )
-    }
-    private val hindiTranslator by hindiTranslatorDelegate
     private val devanagariTransliterator by lazy {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             runCatching { Transliterator.getInstance("Latin-Devanagari") }.getOrNull()
         } else null
     }
-    // Person-name spellings seen in eCourts data (including common desk-entry variants).
-    // These are deliberately separate from the court-terminology glossary below.
-    private val hindiNameOverrides = mapOf(
-        "RAEES" to "रईस",
-        "LOKESH" to "लोकेश",
-        "KUMAR" to "कुमार",
-        "JAIN" to "जैन",
-        "VIKRAM" to "विक्रम",
-        "ANJUM" to "अंजुम",
-        "BEGUM" to "बेगम",
-        "ASLAM" to "असलम",
-        "AHMAD" to "अहमद",
-        "TASLIM" to "तस्लीम",
-        "TASNIM" to "तस्नीम",
-        "BANO" to "बानो",
-        "NOSHIN" to "नौशीन",
-        "SHAFIQ" to "शफ़ीक़",
-        "TABASSUM" to "तबस्सुम",
-        "VASIM" to "वसीम",
-        "KHAN" to "ख़ान",
-        "SHUMAELA" to "शुमाइला",
-        "SHALIQ" to "शालिक़",
-        "HUMERA" to "हुमैरा",
-        "GORDHAN" to "गोरधन",
-        "CHOUDHARY" to "चौधरी",
-        "GUNSARIYA" to "गुनसरिया",
-        "GUNSARIA" to "गुनसरिया",
-        "KAILASH" to "कैलाश",
-        "KELASH" to "कैलाश",
-        "KAILAS" to "कैलाश",
-        "SUB" to "उप",
-        "REGISTRAR" to "रजिस्ट्रार",
-        "TEHSILDAR" to "तहसीलदार",
-        "AKA" to "उर्फ़",
-        "AND" to "और",
-        "OTHER" to "अन्य",
-        "OTHERS" to "अन्य",
-        "STATE" to "राज्य"
-    )
+    private val legalHindiTranslator by lazy {
+        LegalHindiTranslator { token ->
+            devanagariTransliterator?.transliterate(token) ?: token
+        }
+    }
 
     private val eCourtLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -313,65 +264,19 @@ class ResultFragment : Fragment() {
         binding.fabTranslate.text = "अनुवाद…"
         binding.layoutResult.animate().alpha(0.72f).setDuration(180).start()
 
-        val hindiModel = TranslateRemoteModel.Builder(TranslateLanguage.HINDI).build()
-        RemoteModelManager.getInstance().isModelDownloaded(hindiModel)
-            .addOnSuccessListener { isDownloaded ->
-                downloadHindiModel(showDownloadNotice = !isDownloaded)
+        originalTexts.forEach { (view, english) ->
+            view.alpha = 0f
+            view.translationY = 8f
+            view.text = when {
+                isPartyText(view) -> legalHindiTranslator.transliteratePartyList(english.toString())
+                isAdvocateText(view) -> legalHindiTranslator.transliterateName(english.toString())
+                view.id == binding.tvCaseTitle.id ->
+                    legalHindiTranslator.translateCaseTitle(english.toString())
+                else -> legalHindiTranslator.translateText(english.toString())
             }
-            .addOnFailureListener { downloadHindiModel(showDownloadNotice = false) }
-    }
-
-    private fun downloadHindiModel(showDownloadNotice: Boolean) {
-        if (showDownloadNotice) {
-            Toast.makeText(
-                requireContext(),
-                "पहली बार लगभग 30 MB का हिंदी भाषा मॉडल डाउनलोड होगा।",
-                Toast.LENGTH_LONG
-            ).show()
+            view.animate().alpha(1f).translationY(0f).setDuration(240).start()
         }
-
-        hindiTranslator.downloadModelIfNeeded(DownloadConditions.Builder().build())
-            .addOnSuccessListener { translateAllTexts() }
-            .addOnFailureListener {
-                _binding?.let { current ->
-                    current.layoutResult.animate().alpha(1f).setDuration(180).start()
-                    current.fabTranslate.isEnabled = true
-                    current.fabTranslate.text = "हिंदी"
-                    Toast.makeText(
-                        requireContext(),
-                        "हिंदी अनुवाद डाउनलोड नहीं हो सका। इंटरनेट जाँचकर फिर प्रयास करें।",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-    }
-
-    private fun translateAllTexts() {
-        val entries = originalTexts.entries.toList()
-        if (entries.isEmpty()) {
-            finishHindiTranslation()
-            return
-        }
-        val remaining = AtomicInteger(entries.size)
-        entries.forEach { (view, english) ->
-            hindiTranslator.translate(english.toString()).addOnCompleteListener { task ->
-                if (_binding == null) return@addOnCompleteListener
-                if (task.isSuccessful && !task.result.isNullOrBlank()) {
-                    view.alpha = 0f
-                    view.translationY = 8f
-                    view.text = courtHindiOverride(english.toString()) ?: when {
-                        isPartyText(view) -> transliteratePartyList(english.toString(), task.result)
-                        isAdvocateText(view) -> transliterateIndianName(english.toString(), task.result)
-                        view.id == binding.tvCaseTitle.id -> transliterateCaseTitle(
-                            english.toString(), task.result
-                        )
-                        else -> task.result
-                    }
-                    view.animate().alpha(1f).translationY(0f).setDuration(240).start()
-                }
-                if (remaining.decrementAndGet() == 0) finishHindiTranslation()
-            }
-        }
+        finishHindiTranslation()
     }
 
     private fun isPartyText(view: TextView): Boolean = view.id in setOf(
@@ -385,129 +290,6 @@ class ResultFragment : Fragment() {
         binding.tvPetitionerAdvocate.id,
         binding.tvRespondentAdvocate.id
     )
-
-    /** Court terminology is translated with fixed legal Hindi instead of generic ML output. */
-    private fun courtHindiOverride(english: String): String? {
-        val normalized = english.uppercase()
-            .replace("&", " AND ")
-            .replace(Regex("[.\\-/,()]"), " ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
-        return when {
-            normalized.contains("ADDL") && normalized.contains("DIST") &&
-                (normalized.contains("SESSION") || normalized.contains("SESS")) &&
-                normalized.contains("JUDGE") ->
-                "अतिरिक्त जिला एवं सत्र न्यायाधीश"
-            normalized.contains("ADDITIONAL") && normalized.contains("DISTRICT") &&
-                (normalized.contains("SESSION") || normalized.contains("SESS")) &&
-                normalized.contains("JUDGE") ->
-                "अतिरिक्त जिला एवं सत्र न्यायाधीश"
-            normalized.contains("DISTRICT") &&
-                (normalized.contains("SESSION") || normalized.contains("SESS")) &&
-                normalized.contains("JUDGE") -> "जिला एवं सत्र न्यायाधीश"
-            normalized.contains("CIVIL MISC") && normalized.contains("CONNECTED") ->
-                "सिविल विविध कनेक्टेड"
-            normalized == "CIVIL MISC" -> "सिविल विविध"
-            normalized.contains("CRIMINAL MISC") && normalized.contains("CONNECTED") ->
-                "आपराधिक विविध कनेक्टेड"
-            normalized == "CRIMINAL MISC" -> "आपराधिक विविध"
-            normalized.contains("MISC APPLICATION") -> "विविध आवेदन"
-            normalized.contains("SPECIAL JUDGE") -> "विशेष न्यायाधीश"
-            normalized.contains("CHIEF JUDICIAL MAGISTRATE") -> "मुख्य न्यायिक मजिस्ट्रेट"
-            normalized.contains("JUDICIAL MAGISTRATE") -> "न्यायिक मजिस्ट्रेट"
-            normalized.contains("SENIOR CIVIL JUDGE") -> "वरिष्ठ सिविल न्यायाधीश"
-            normalized.contains("CIVIL JUDGE") -> "सिविल न्यायाधीश"
-            normalized == "PETITIONER" -> "याचिकाकर्ता"
-            normalized == "RESPONDENT" -> "प्रतिवादी"
-            normalized == "CASE DETAILS" -> "मामले का विवरण"
-            normalized == "CASE STAGE" -> "मामले की स्थिति"
-            normalized == "NEXT HEARING" -> "अगली सुनवाई"
-            normalized == "REGISTRATION NUMBER" -> "पंजीकरण संख्या"
-            normalized == "REGISTRATION DATE" -> "पंजीकरण दिनांक"
-            normalized == "FILING DATE" -> "दाखिल दिनांक"
-            normalized == "ACTS AND SECTIONS" -> "अधिनियम एवं धाराएँ"
-            normalized == "NOT AVAILABLE" -> "उपलब्ध नहीं है"
-            normalized == "NOT SCHEDULED" -> "निर्धारित नहीं है"
-            normalized == "UNKNOWN" -> "अज्ञात"
-            normalized.contains("AWAITING SERVICE") && normalized.contains("NOTICE") ->
-                "नोटिस की तामील की प्रतीक्षा में"
-            normalized == "DISPOSED" -> "निस्तारित"
-            normalized == "PENDING" -> "लंबित"
-            normalized == "NOTICE ISSUED" -> "नोटिस जारी"
-            normalized == "LISTED" -> "सूचीबद्ध"
-            else -> null
-        }
-    }
-
-    private fun transliteratePartyList(english: String, translatedFallback: String): String {
-        val parties = english.lineSequence().map { line ->
-            line.trim().replace(Regex("^\\d+[.)]\\s*"), "")
-        }.filter { it.isNotBlank() }.toList()
-        if (parties.isEmpty()) return translatedFallback
-
-        val translatedParties = Regex(
-            """(?:^|\s)\d+[.)]\s*(.*?)(?=\s+\d+[.)]\s*|$)""",
-            setOf(RegexOption.DOT_MATCHES_ALL)
-        ).findAll(translatedFallback.trim()).map { it.groupValues[1].trim() }.toList()
-
-        val hindiParties = when {
-            translatedParties.size == parties.size -> translatedParties.mapIndexed { index, translated ->
-                transliterateIndianName(parties[index], translated)
-            }
-            parties.size == 1 && translatedFallback.isNotBlank() -> listOf(
-                transliterateIndianName(
-                    parties.first(),
-                    translatedFallback.replace(Regex("^\\d+[.)]\\s*"), "")
-                )
-            )
-            else -> parties.map { transliterateIndianName(it, it) }
-        }
-        return hindiParties.mapIndexed { index, party ->
-            "${index + 1}. $party"
-        }.joinToString("\n")
-    }
-
-    private fun transliterateCaseTitle(english: String, translatedFallback: String): String {
-        val sides = english.split(Regex("\\s+v(?:s\\.?|ersus)\\s+", RegexOption.IGNORE_CASE), 2)
-        return if (sides.size == 2) {
-            "${transliterateIndianName(sides[0], "")} बनाम " +
-                transliterateIndianName(sides[1], "")
-        } else if (english.any { it.isLetter() }) {
-            transliterateIndianName(english, "")
-        } else correctHindiNames(translatedFallback)
-    }
-
-    private fun transliterateIndianName(english: String, translatedFallback: String): String {
-        if (english.isBlank() || english.none { it.isLetter() }) {
-            return correctHindiNames(translatedFallback)
-        }
-        val transliterator = devanagariTransliterator
-            ?: return correctHindiNames(translatedFallback)
-        // Names are transliterated from the recorded English spelling. Google
-        // Translate is useful for labels, but it can semantically rewrite names.
-        return Regex("[A-Za-z]+|[^A-Za-z]+").findAll(english).joinToString("") { match ->
-            val token = match.value
-            if (token.firstOrNull()?.isLetter() == true) {
-                hindiNameOverrides[token.uppercase()]
-                    ?: transliterator.transliterate(token.lowercase())
-            } else token
-        }.let(::correctHindiNames)
-    }
-
-    private fun correctHindiNames(value: String): String {
-        var corrected = value
-            .replace("रियास", "रईस")
-            .replace("रियाज़", "रईस")
-            .replace("शाफीक", "शफ़ीक़")
-        devanagariTransliterator?.let { transliterator ->
-            corrected = Regex("[A-Za-z]+").replace(corrected) { match ->
-                hindiNameOverrides[match.value.uppercase()]
-                    ?: transliterator.transliterate(match.value.lowercase())
-            }
-        }
-        // Generic ICU transliteration uses Sanskrit-style word-final viramas.
-        return corrected.replace(Regex("्(?=\\s|$|[.,()/])"), "")
-    }
 
     private fun finishHindiTranslation() {
         _binding?.let { current ->
@@ -573,8 +355,4 @@ class ResultFragment : Fragment() {
         _binding = null
     }
 
-    override fun onDestroy() {
-        if (hindiTranslatorDelegate.isInitialized()) hindiTranslator.close()
-        super.onDestroy()
-    }
 }
