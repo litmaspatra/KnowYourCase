@@ -665,7 +665,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildCsv(data: List<NoticeEntity>): String {
-        fun q(v: String) = """ + v.replace(""", """").replace("\n", " ") + """
+        fun q(v: String) = "\\\"" + v.replace("\\\"", "\\\"\\\"").replace("\\n", " ") + "\\\""
         val header = "CNR,Case Number,Case Title,Court,Petitioner,Respondent,Advocates,Next Hearing,Stage,Process Server,Service,Fetch State"
         val rows = data.map { n ->
             listOf(n.cnr,n.caseNumber,n.caseTitle,n.courtName,n.petitioner,n.respondent,
