@@ -1,4 +1,4 @@
-name: Build BlueSpeaker Debug APK
+name: Build BlueSpeaker Test Bundle
 on:
   push:
     branches:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,9 +17,23 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build debug APK
+      - name: Build Android debug APK
         run: gradle -p bluespeaker-build/android assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: BlueSpeaker-debug-apk
+          name: BlueSpeaker-Android-debug
           path: bluespeaker-build/android/app/build/outputs/apk/debug/app-debug.apk
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish Windows bridge
+        run: dotnet publish bluespeaker-build/windows/BlueSpeakerBridge.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BlueSpeaker-Windows-Bridge
+          path: bluespeaker-build/windows/bin/Release/net8.0-windows/win-x64/publish/BlueSpeakerBridge.exe
