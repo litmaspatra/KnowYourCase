@@ -13,8 +13,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -24,6 +26,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.material.button.MaterialButton
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -38,16 +41,40 @@ class ModernScannerActivity : AppCompatActivity() {
     }
 
     private lateinit var previewView: PreviewView
+    private lateinit var torchButton: MaterialButton
     private var camera: Camera? = null
     private var torchOn = false
     private var finished = false
     private val cameraExecutor = Executors.newSingleThreadExecutor()
+
     private val scanner by lazy {
         BarcodeScanning.getClient(
             BarcodeScannerOptions.Builder()
                 .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
                 .build()
         )
+    }
+
+    private val photoPicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null || finished) return@registerForActivityResult
+        runCatching { InputImage.fromFilePath(this, uri) }
+            .onSuccess { image ->
+                scanner.process(image)
+                    .addOnSuccessListener { barcodes ->
+                        val value = barcodes.firstOrNull { !it.rawValue.isNullOrBlank() }?.rawValue
+                        if (!value.isNullOrBlank()) {
+                            finishWithResult(value)
+                        } else {
+                            Toast.makeText(this, "No QR code found in that image.", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(this, "Could not read that image.", Toast.LENGTH_LONG).show()
+                    }
+            }
+            .onFailure {
+                Toast.makeText(this, "Could not open that image.", Toast.LENGTH_LONG).show()
+            }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -89,24 +116,53 @@ class ModernScannerActivity : AppCompatActivity() {
             marginStart = dp(12)
         })
 
-        val torch = ImageButton(this).apply {
-            setImageResource(android.R.drawable.button_onoff_indicator_off)
+        val topActions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        torchButton = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = "Flash"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            strokeColor = android.content.res.ColorStateList.valueOf(0x99FFFFFF.toInt())
             setBackgroundColor(Color.TRANSPARENT)
-            setColorFilter(Color.WHITE)
-            contentDescription = "Toggle torch"
+            minHeight = dp(44)
             setOnClickListener {
                 torchOn = !torchOn
                 camera?.cameraControl?.enableTorch(torchOn)
-                setImageResource(if (torchOn) android.R.drawable.button_onoff_indicator_on else android.R.drawable.button_onoff_indicator_off)
+                text = if (torchOn) "Flash On" else "Flash"
             }
         }
-        root.addView(torch, FrameLayout.LayoutParams(dp(52), dp(52), Gravity.TOP or Gravity.END).apply {
-            topMargin = dp(18)
-            marginEnd = dp(12)
+
+        val photoButton = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = "Photo"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            strokeColor = android.content.res.ColorStateList.valueOf(0x99FFFFFF.toInt())
+            setBackgroundColor(Color.TRANSPARENT)
+            minHeight = dp(44)
+            setOnClickListener { photoPicker.launch("image/*") }
+        }
+
+        topActions.addView(torchButton, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { marginEnd = dp(8) })
+        topActions.addView(photoButton, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+
+        root.addView(topActions, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.TOP or Gravity.END
+        ).apply {
+            topMargin = dp(20)
+            marginEnd = dp(14)
         })
 
         val hint = TextView(this).apply {
-            text = "Align the eCourts QR code inside the frame"
+            text = "Align the eCourts QR code inside the frame\nOr choose Photo to scan an existing image"
             setTextColor(Color.WHITE)
             textSize = 15f
             gravity = Gravity.CENTER
@@ -154,11 +210,7 @@ class ModernScannerActivity : AppCompatActivity() {
                 scanner.process(image)
                     .addOnSuccessListener { barcodes ->
                         val value = barcodes.firstOrNull { !it.rawValue.isNullOrBlank() }?.rawValue
-                        if (!value.isNullOrBlank() && !finished) {
-                            finished = true
-                            setResult(RESULT_OK, Intent().putExtra(EXTRA_SCAN_RESULT, value))
-                            finish()
-                        }
+                        if (!value.isNullOrBlank()) finishWithResult(value)
                     }
                     .addOnCompleteListener { imageProxy.close() }
             }
@@ -171,20 +223,36 @@ class ModernScannerActivity : AppCompatActivity() {
                     preview,
                     analysis
                 )
-            } catch (e: Exception) {
-                Toast.makeText(this, "Camera could not start", Toast.LENGTH_LONG).show()
-                finish()
+                torchButton.isEnabled = camera?.cameraInfo?.hasFlashUnit() == true
+            } catch (_: Exception) {
+                Toast.makeText(this, "Camera could not start. You can still scan from Photo.", Toast.LENGTH_LONG).show()
             }
         }, ContextCompat.getMainExecutor(this))
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    private fun finishWithResult(value: String) {
+        if (finished) return
+        finished = true
+        setResult(RESULT_OK, Intent().putExtra(EXTRA_SCAN_RESULT, value))
+        finish()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == CAMERA_PERMISSION && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+        if (requestCode == CAMERA_PERMISSION &&
+            grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
+        ) {
             startCamera()
         } else {
-            Toast.makeText(this, "Camera permission is required to scan notices", Toast.LENGTH_LONG).show()
-            finish()
+            Toast.makeText(
+                this,
+                "Camera permission denied. Use Photo to scan a saved QR image.",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
