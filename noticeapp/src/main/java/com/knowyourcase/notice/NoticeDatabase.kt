@@ -36,6 +36,9 @@ interface NoticeDao {
     suspend fun byId(id: Long): NoticeEntity?
     @Query("SELECT * FROM notices WHERE cnr=:cnr ORDER BY scannedAt DESC")
     suspend fun byCnr(cnr: String): List<NoticeEntity>
+
+    @Query("UPDATE notices SET fetchedState = 'QUEUED' WHERE fetchedState = 'FETCHING'")
+    suspend fun recoverInterruptedFetches()
 }
 
 @Database(entities = [NoticeEntity::class], version = 1, exportSchema = false)
