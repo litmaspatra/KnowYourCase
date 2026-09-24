@@ -569,7 +569,7 @@ class MainActivity : AppCompatActivity() {
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("Case already tracked")
                     .setMessage("A notice for $cnr already exists. Add another notice for the same case?")
-                    .setNegativeButton("Cancel", null)
+                    .setNegativeButton("Open existing") { _, _ -> showNotice(existing.first()) }
                     .setPositiveButton("Add another") { _, _ -> createNotice(cnr) }
                     .show()
             } else createNotice(cnr)
