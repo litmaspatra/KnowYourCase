@@ -20,6 +20,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: NoticeTracker-v0.2-debug
+          name: NoticeTracker-v0.3-debug
           path: noticeapp/build/outputs/apk/debug/noticeapp-debug.apk
           if-no-files-found: error
