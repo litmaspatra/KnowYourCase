@@ -36,8 +36,11 @@ class ResultFragment : Fragment() {
         } else null
     }
     private val legalHindiTranslator by lazy {
-        LegalHindiTranslator { token ->
-            devanagariTransliterator?.transliterate(token) ?: token
+        val transliterator = devanagariTransliterator
+        if (transliterator != null) {
+            LegalHindiTranslator { token -> transliterator.transliterate(token) }
+        } else {
+            LegalHindiTranslator()
         }
     }
 
