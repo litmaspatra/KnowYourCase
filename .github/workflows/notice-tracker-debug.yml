@@ -2,12 +2,7 @@ name: Build Notice Tracker Debug
 
 on:
   pull_request:
-    branches: [ main ]
-    paths:
-      - 'noticeapp/**'
-      - 'settings.gradle'
-      - 'NOTICE_TRACKER_PRD.md'
-      - '.github/workflows/notice-tracker-debug.yml'
+    branches: [ notice-tracker-ci-base ]
   workflow_dispatch:
 
 jobs:
@@ -20,8 +15,7 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - name: Make Gradle executable
-        run: chmod +x gradlew
+      - run: chmod +x gradlew
       - name: Compile Notice Tracker debug APK
         run: ./gradlew :noticeapp:assembleDebug --stacktrace
       - name: Upload debug APK
