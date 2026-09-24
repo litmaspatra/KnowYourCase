@@ -1,0 +1,32 @@
+name: Build Notice Tracker Debug
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'noticeapp/**'
+      - 'settings.gradle'
+      - 'NOTICE_TRACKER_PRD.md'
+      - '.github/workflows/notice-tracker-debug.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Make Gradle executable
+        run: chmod +x gradlew
+      - name: Compile Notice Tracker debug APK
+        run: ./gradlew :noticeapp:assembleDebug --stacktrace
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoticeTracker-debug
+          path: noticeapp/build/outputs/apk/debug/noticeapp-debug.apk
+          if-no-files-found: error
