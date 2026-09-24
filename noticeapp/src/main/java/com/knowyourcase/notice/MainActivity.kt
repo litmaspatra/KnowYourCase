@@ -80,7 +80,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         buildShell()
         requestNotificationPermission()
-        reloadAndRender()
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) { db.notices().recoverInterruptedFetches() }
+            reloadAndRender()
+            pumpQueue()
+        }
     }
 
     override fun onResume() {
