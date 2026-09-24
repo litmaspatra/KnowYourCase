@@ -4,9 +4,9 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
-    <application android:allowBackup="true" android:label="Notice Tracker" android:supportsRtl="true"
+    <application android:allowBackup="true" android:label="Notice Tracker" android:icon="@drawable/ic_notice_pixel" android:roundIcon="@drawable/ic_notice_pixel" android:supportsRtl="true"
         android:theme="@style/Theme.NoticeTracker" android:usesCleartextTraffic="false">
-        <activity android:name=".ECourtWebViewActivity" android:exported="false" />
+        <activity android:name=".ECourtWebViewActivity" android:exported="false" android:theme="@style/Theme.NoticeTracker.Transparent" />
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
