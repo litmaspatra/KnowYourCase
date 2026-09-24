@@ -415,7 +415,7 @@ class ECourtWebViewActivity : AppCompatActivity() {
 
     private fun retryCaptcha() {
         if (captchaAttempt >= MAX_CAPTCHA_ATTEMPTS) {
-            enterManualCaptchaMode()
+            finishWithError("Automatic CAPTCHA attempts failed")
             return
         }
         // Reload page to get a fresh CAPTCHA image
@@ -424,31 +424,14 @@ class ECourtWebViewActivity : AppCompatActivity() {
     }
 
     private fun createBackgroundLookupView() {
-        val root = FrameLayout(this)
-        loadingView = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(48, 48, 48, 48)
-            addView(ProgressBar(this@ECourtWebViewActivity))
-            addView(TextView(this@ECourtWebViewActivity).apply {
-                text = "Fetching case details…"
-                textSize = 18f
-                gravity = Gravity.CENTER
-                setPadding(0, 28, 0, 0)
-            })
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            alpha = 0.01f
         }
-        root.addView(
-            loadingView,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        )
-
-        // The WebView must stay attached for eCourts JavaScript and CAPTCHA
-        // rendering, but it is kept off-screen during automatic lookup.
-        webView = WebView(this).apply { alpha = 0f }
-        root.addView(webView, FrameLayout.LayoutParams(1, 1))
+        loadingView = View(this).apply { visibility = View.GONE }
+        root.addView(loadingView, FrameLayout.LayoutParams(1, 1))
+        webView = WebView(this).apply { alpha = 0.01f }
+        root.addView(webView, FrameLayout.LayoutParams(2, 2))
         setContentView(root)
     }
 
