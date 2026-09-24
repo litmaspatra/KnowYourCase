@@ -12,7 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
-import com.google.gson.JsonParser
+import com.google.gson.Gson
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Dispatchers
@@ -287,7 +287,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun mergeCase(old: NoticeEntity, rawJson: String): NoticeEntity {
-        val j = runCatching { JsonParser.parseString(rawJson).asJsonObject }.getOrNull()
+        val j = runCatching { Gson().fromJson(rawJson, com.google.gson.JsonObject::class.java) }.getOrNull()
             ?: return old.copy(fetchedState = "RETRY_REQUIRED", lastError = "Invalid case response")
 
         fun s(vararg keys: String): String {
