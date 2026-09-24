@@ -29,7 +29,7 @@ import kotlin.coroutines.resume
  *       → return solved text
  *
  */
-class CaptchaSolver {
+class CaptchaSolver(private val context: android.content.Context) {
 
     companion object {
         private const val TAG = "CaptchaSolver"
@@ -61,7 +61,7 @@ class CaptchaSolver {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
                 output.toByteArray()
             }
-            val response = RetrofitClient.service.solveCaptcha(
+            val response = RetrofitClient.service(context).solveCaptcha(
                 CaptchaRequest(Base64.encodeToString(bytes, Base64.NO_WRAP))
             )
             response.body()?.solved.takeIf { response.isSuccessful }
