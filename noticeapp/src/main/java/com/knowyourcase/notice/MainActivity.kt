@@ -246,8 +246,8 @@ class MainActivity : AppCompatActivity() {
     private fun renderTracker() {
         val scroll = ScrollView(this)
         val root = page("Tracker", "Pending and completed notices")
-        val pending = notices.filter { it.serviceStatus != "SERVED" }
-        val completed = notices.filter { it.serviceStatus == "SERVED" }
+        val pending = notices.filter { it.serviceStatus == "PENDING" }
+        val completed = notices.filter { it.serviceStatus == "SERVED" || it.serviceStatus == "UNSERVED" }
 
         root.addView(TextView(this).apply {
             text = pending.size.toString() + " pending    •    " + completed.size + " completed"
@@ -316,11 +316,15 @@ class MainActivity : AppCompatActivity() {
                 }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
 
                 addView(TextView(this@MainActivity).apply {
-                    text = if (n.serviceStatus == "SERVED") "Served" else statusLabel(n)
+                    text = when (n.serviceStatus) {
+                        "SERVED" -> "Served"
+                        "UNSERVED" -> "Unserved"
+                        else -> statusLabel(n)
+                    }
                     textSize = 11f
                     setPadding(dp(8), dp(4), dp(8), dp(4))
                     background = ContextCompat.getDrawable(this@MainActivity,
-                        if (n.serviceStatus == "SERVED") R.drawable.bg_chip_complete else R.drawable.bg_chip_pending)
+                        if (n.serviceStatus == "SERVED" || n.serviceStatus == "UNSERVED") R.drawable.bg_chip_complete else R.drawable.bg_chip_pending)
                 })
             })
 
@@ -353,12 +357,28 @@ class MainActivity : AppCompatActivity() {
                 setOnClickListener { assignProcessServer(n) }
             }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
 
-            actions.addView(MaterialButton(this@MainActivity).apply {
-                text = if (n.serviceStatus == "SERVED") "Mark Unserved" else "Mark Served"
-                isAllCaps = false
-                minHeight = dp(40)
-                setOnClickListener { toggleServed(n) }
-            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            if (n.serviceStatus == "PENDING") {
+                actions.addView(MaterialButton(this@MainActivity).apply {
+                    text = "Served"
+                    isAllCaps = false
+                    minHeight = dp(40)
+                    setOnClickListener { markServiceStatus(n, "SERVED") }
+                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
+
+                actions.addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                    text = "Unserved"
+                    isAllCaps = false
+                    minHeight = dp(40)
+                    setOnClickListener { markServiceStatus(n, "UNSERVED") }
+                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            } else {
+                actions.addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                    text = "Move to Pending"
+                    isAllCaps = false
+                    minHeight = dp(40)
+                    setOnClickListener { markServiceStatus(n, "PENDING") }
+                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            }
 
             addView(actions)
 
@@ -389,7 +409,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(settingCard("⇩", "Export Data", "CSV spreadsheet or JSON backup") { showExportDialog() }, lp(bottom = 10))
         root.addView(settingCard("◉", "Reminders", "10, 7, 3, 1 days and hearing morning") {
             AlertDialog.Builder(this).setTitle("Reminders")
-                .setMessage("Not Served notices are reminded before the next hearing. Marking Served cancels pending reminders.")
+                .setMessage("Pending notices are reminded before the next hearing. Marking Served or Unserved completes the notice and cancels pending reminders.")
                 .setPositiveButton("OK", null).show()
         }, lp(bottom = 10))
         root.addView(settingCard("♟", "Process Servers", processServerSummary()) { showProcessServerSettings() }, lp(bottom = 10))
@@ -584,7 +604,11 @@ class MainActivity : AppCompatActivity() {
         line("Stage", n.caseStage)
         line("Judge", n.judge)
         line("Process server", n.processServer.ifBlank { "Not assigned" })
-        line("Service", if (n.serviceStatus == "SERVED") "Served" else "Not Served")
+        line("Service", when (n.serviceStatus) {
+            "SERVED" -> "Served"
+            "UNSERVED" -> "Unserved"
+            else -> "Pending"
+        })
 
         val dialog = AlertDialog.Builder(this)
             .setTitle("Notice Details")
@@ -596,10 +620,21 @@ class MainActivity : AppCompatActivity() {
             dialog.dismiss()
             assignProcessServer(n)
         }, lp(top = 14))
-        box.addView(outlineButton(if (n.serviceStatus == "SERVED") "Mark Not Served" else "Mark Served") {
-            dialog.dismiss()
-            toggleServed(n)
-        }, lp(top = 8))
+        if (n.serviceStatus == "PENDING") {
+            box.addView(outlineButton("Mark Served") {
+                dialog.dismiss()
+                markServiceStatus(n, "SERVED")
+            }, lp(top = 8))
+            box.addView(outlineButton("Mark Unserved") {
+                dialog.dismiss()
+                markServiceStatus(n, "UNSERVED")
+            }, lp(top = 8))
+        } else {
+            box.addView(outlineButton("Move to Pending") {
+                dialog.dismiss()
+                markServiceStatus(n, "PENDING")
+            }, lp(top = 8))
+        }
         if (n.fetchedState != "READY") box.addView(outlineButton("Refresh case details") {
             dialog.dismiss()
             retryNotice(n)
@@ -637,9 +672,12 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun toggleServed(n: NoticeEntity) {
-        val served = n.serviceStatus != "SERVED"
-        saveNotice(n.copy(serviceStatus = if (served) "SERVED" else "NOT_SERVED", updatedAt = System.currentTimeMillis()), served)
+    private fun markServiceStatus(n: NoticeEntity, status: String) {
+        val updated = n.copy(
+            serviceStatus = status,
+            updatedAt = System.currentTimeMillis()
+        )
+        saveNotice(updated, cancelReminders = status != "PENDING")
     }
 
     private fun saveNotice(n: NoticeEntity, cancelReminders: Boolean = false) {
@@ -764,7 +802,11 @@ class MainActivity : AppCompatActivity() {
             listOf(n.cnr,n.caseNumber,n.caseTitle,n.courtName,n.petitioner,n.respondent,
                 listOf(n.petitionerAdvocate,n.respondentAdvocate).filter { it.isNotBlank() }.joinToString(" | "),
                 n.nextHearing,n.caseStage,n.processServer,
-                if (n.serviceStatus == "SERVED") "Served" else "Not Served",n.fetchedState
+                when (n.serviceStatus) {
+                    "SERVED" -> "Served"
+                    "UNSERVED" -> "Unserved"
+                    else -> "Pending"
+                },n.fetchedState
             ).joinToString(",") { q(it) }
         }
         return (listOf(header) + rows).joinToString("\n")
