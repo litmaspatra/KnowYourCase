@@ -1,5 +1,14 @@
 <resources>
-    <style name="Theme.NoticeTracker" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.NoticeTracker" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#205D9B</item>
+        <item name="colorSecondary">#D08C35</item>
         <item name="android:fontFamily">sans</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
+    </style>
+    <style name="Theme.NoticeTracker.Transparent" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowNoTitle">true</item>
     </style>
 </resources>
