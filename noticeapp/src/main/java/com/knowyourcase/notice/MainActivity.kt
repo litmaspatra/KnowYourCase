@@ -24,8 +24,6 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.gson.Gson
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
 import com.knowyourcase.notice.data.api.BackendConfig
 import com.knowyourcase.notice.data.api.RetrofitClient
 import kotlinx.coroutines.Dispatchers
@@ -42,8 +40,12 @@ class MainActivity : AppCompatActivity() {
     private var activeTab = TAB_HOME
     private val prefs by lazy { getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
 
-    private val scanner = registerForActivityResult(ScanContract()) { result ->
-        result.contents?.let(::handleCnrInput)
+    private var backendHealth = "UNKNOWN"
+
+    private val scanner = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            result.data?.getStringExtra(ModernScannerActivity.EXTRA_SCAN_RESULT)?.let(::handleCnrInput)
+        }
     }
 
     private val lookup = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -179,12 +181,7 @@ class MainActivity : AppCompatActivity() {
                     setPadding(dp(8), 0, dp(8), dp(18))
                 })
                 addView(primaryButton("▦  Scan QR Code") {
-                    scanner.launch(ScanOptions().apply {
-                        setPrompt("Scan the eCourts QR code")
-                        setBeepEnabled(false)
-                        setOrientationLocked(false)
-                        setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                    })
+                    scanner.launch(android.content.Intent(this@MainActivity, ModernScannerActivity::class.java))
                 })
                 addView(TextView(this@MainActivity).apply {
                     text = "or"
@@ -354,6 +351,7 @@ class MainActivity : AppCompatActivity() {
     private fun renderSettings() {
         val scroll = ScrollView(this)
         val root = page("Settings", "Backend, appearance, fields and exports")
+        root.addView(backendHealthCard(), lp(bottom = 10))
         root.addView(settingCard("▤", "Backend Setup", BackendConfig.url(this)) { showBackendDialog() }, lp(bottom = 10))
         root.addView(settingCard("☷", "Data & Fields", "Choose which fields appear and export") { showFieldsDialog() }, lp(bottom = 10))
         root.addView(settingCard("◈", "Appearance", themeSummary()) { showThemeDialog() }, lp(bottom = 10))
@@ -371,6 +369,52 @@ class MainActivity : AppCompatActivity() {
         }, lp(bottom = 10))
         scroll.addView(root)
         content.addView(scroll)
+    }
+
+    private fun backendHealthCard() = card().apply {
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(14), dp(12), dp(14))
+
+            addView(TextView(this@MainActivity).apply {
+                text = "●"
+                textSize = 24f
+                setTextColor(when (backendHealth) {
+                    "ONLINE" -> 0xFF2E7D32.toInt()
+                    "OFFLINE" -> 0xFFC62828.toInt()
+                    "CHECKING" -> 0xFFF9A825.toInt()
+                    else -> 0xFF757575.toInt()
+                })
+                gravity = Gravity.CENTER
+            }, LinearLayout.LayoutParams(dp(42), dp(42)))
+
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(TextView(this@MainActivity).apply {
+                    text = "Backend Health"
+                    textSize = 16f
+                    setTypeface(typeface, Typeface.BOLD)
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = when (backendHealth) {
+                        "ONLINE" -> "Online • " + BackendConfig.url(this@MainActivity)
+                        "OFFLINE" -> "Offline • " + BackendConfig.url(this@MainActivity)
+                        "CHECKING" -> "Checking backend…"
+                        else -> "Not checked • " + BackendConfig.url(this@MainActivity)
+                    }
+                    textSize = 12f
+                    alpha = .65f
+                })
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+            addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                text = if (backendHealth == "CHECKING") "Checking" else "Check now"
+                isEnabled = backendHealth != "CHECKING"
+                isAllCaps = false
+                setOnClickListener { testBackend() }
+            })
+        })
     }
 
     private fun settingCard(icon: String, title: String, subtitle: String, click: () -> Unit) = card().apply {
@@ -585,12 +629,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun testBackend() {
+        backendHealth = "CHECKING"
+        if (activeTab == TAB_SETTINGS) renderCurrentTab()
         lifecycleScope.launch {
             val ok = withContext(Dispatchers.IO) {
                 runCatching { RetrofitClient.service(this@MainActivity).health().isSuccessful }.getOrDefault(false)
             }
-            toast(if (ok) "Backend connected" else "Backend saved, but connection test failed")
-            renderCurrentTab()
+            backendHealth = if (ok) "ONLINE" else "OFFLINE"
+            toast(if (ok) "Backend is online" else "Backend is offline")
+            if (activeTab == TAB_SETTINGS) renderCurrentTab()
         }
     }
 
