@@ -41,6 +41,8 @@ class LegalHindiTranslator(
         "KARTIK" to "कार्तिक",
         "KARTHIK" to "कार्तिक",
         "KUMAR" to "कुमार",
+        "NAMA" to "नामा",
+        "LAL" to "लाल",
         "JAIN" to "जैन",
         "VIKRAM" to "विक्रम",
         "KAILASH" to "कैलाश",
