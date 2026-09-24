@@ -13,8 +13,8 @@ android {
         applicationId "com.knowyourcase.app"
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName "1.0.2"
+        versionCode 4
+        versionName "1.1.0"
 
         buildConfigField "String", "BASE_URL", '"https://knc-backend.kartik.blitz.cloud"'
     }
@@ -81,9 +81,6 @@ dependencies {
 
     // OCR
     implementation 'com.google.mlkit:text-recognition:16.0.0'
-
-    // Free on-device English/Hindi translation
-    implementation 'com.google.mlkit:translate:17.0.3'
 
     // Room (local history)
     implementation 'androidx.room:room-runtime:2.6.1'
