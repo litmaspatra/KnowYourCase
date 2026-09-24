@@ -20,7 +20,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val id = inputData.getLong("notice_id", -1)
         if (id < 0) return Result.success()
         val notice = NoticeDatabase.get(applicationContext).notices().byId(id) ?: return Result.success()
-        if (notice.serviceStatus != "PENDING") return Result.success()
+        if (notice.serviceStatus != "NOT_SERVED") return Result.success()
 
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
@@ -36,7 +36,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             append(notice.caseNumber.ifBlank { notice.cnr })
             if (notice.caseTitle.isNotBlank()) append(" • ").append(notice.caseTitle)
             if (notice.nextHearing.isNotBlank()) append("\nNext hearing: ").append(notice.nextHearing)
-            append("\nPending service")
+            append("\nNot served")
             if (notice.processServer.isBlank()) append(" • Process server not assigned")
         }
 
@@ -58,7 +58,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
         fun reschedule(context: Context, notice: NoticeEntity) {
             cancel(context, notice.id)
-            if (notice.serviceStatus != "PENDING" || notice.nextHearing.isBlank()) return
+            if (notice.serviceStatus != "NOT_SERVED" || notice.nextHearing.isBlank()) return
             val hearing = runCatching { LocalDate.parse(notice.nextHearing) }.getOrNull() ?: return
 
             offsets.forEach { daysBefore ->
