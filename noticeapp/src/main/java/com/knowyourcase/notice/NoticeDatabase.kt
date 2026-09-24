@@ -2,6 +2,7 @@ package com.knowyourcase.notice
 
 import android.content.Context
 import androidx.room.*
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Entity(tableName = "notices")
 data class NoticeEntity(
@@ -19,7 +20,7 @@ data class NoticeEntity(
     val nextHearing: String = "",
     val caseStage: String = "",
     val processServer: String = "",
-    val serviceStatus: String = "NOT_SERVED",
+    val serviceStatus: String = "PENDING",
     val fetchedState: String = "FETCHING",
     val lastError: String = "",
     val scannedAt: Long = System.currentTimeMillis(),
@@ -41,10 +42,16 @@ interface NoticeDao {
     suspend fun recoverInterruptedFetches()
 }
 
-@Database(entities = [NoticeEntity::class], version = 1, exportSchema = false)
+@Database(entities = [NoticeEntity::class], version = 2, exportSchema = false)
 abstract class NoticeDatabase : RoomDatabase() {
     abstract fun notices(): NoticeDao
     companion object {
+        private val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("UPDATE notices SET serviceStatus = 'PENDING' WHERE serviceStatus = 'NOT_SERVED'")
+            }
+        }
+
         @Volatile private var INSTANCE: NoticeDatabase? = null
         fun get(context: Context): NoticeDatabase =
             INSTANCE ?: synchronized(this) {
@@ -52,7 +59,7 @@ abstract class NoticeDatabase : RoomDatabase() {
                     context.applicationContext,
                     NoticeDatabase::class.java,
                     "notice-tracker.db"
-                ).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2).build().also { INSTANCE = it }
             }
     }
 }
