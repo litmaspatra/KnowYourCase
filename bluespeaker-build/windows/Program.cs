@@ -126,8 +126,10 @@ static class Program
 
         if (wf.Encoding == WaveFormatEncoding.Extensible && wf is WaveFormatExtensible ext)
         {
-            if (ext.SubFormat == AudioSubtypes.MEDIASUBTYPE_IEEE_FLOAT) return 1;
-            if (ext.SubFormat == AudioSubtypes.MEDIASUBTYPE_PCM)
+            var ieeeFloat = new Guid("00000003-0000-0010-8000-00aa00389b71");
+            var pcm = new Guid("00000001-0000-0010-8000-00aa00389b71");
+            if (ext.SubFormat == ieeeFloat) return 1;
+            if (ext.SubFormat == pcm)
                 return wf.BitsPerSample switch { 24 => 2, 32 => 3, _ => 0 };
         }
 
