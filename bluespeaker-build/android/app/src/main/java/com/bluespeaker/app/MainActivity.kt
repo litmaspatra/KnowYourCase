@@ -1,6 +1,7 @@
 package com.bluespeaker.app
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -17,23 +18,47 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private var serverJob: Job? = null
+    private var pendingStart: (((String) -> Unit) -> Unit)? = null
+    private var lastUpdate: ((String) -> Unit)? = null
+
+    private val permissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+            val ok = grants.values.all { it }
+            if (ok) lastUpdate?.let { startServerNow(it) }
+            else lastUpdate?.invoke("Bluetooth permission denied")
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { BlueSpeakerApp(::startServer, ::stopServer) }
+        setContent {
+            BlueSpeakerApp(
+                start = { update -> ensurePermissionsAndStart(update) },
+                stop = ::stopServer
+            )
+        }
     }
 
-    private fun startServer(update: (String) -> Unit) {
-        if (Build.VERSION.SDK_INT >= 31 && checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            permissionLauncher.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN))
-            return
+    private fun ensurePermissionsAndStart(update: (String) -> Unit) {
+        lastUpdate = update
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val connect = ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+            val scan = ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
+            if (connect != PackageManager.PERMISSION_GRANTED || scan != PackageManager.PERMISSION_GRANTED) {
+                permissionLauncher.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN))
+                return
+            }
         }
+        startServerNow(update)
+    }
+
+    private fun startServerNow(update: (String) -> Unit) {
         if (serverJob?.isActive == true) return
         serverJob = lifecycleScope.launch {
             runCatching { BluetoothAudioServer(this@MainActivity).run(update) }
@@ -45,8 +70,6 @@ class MainActivity : ComponentActivity() {
         serverJob?.cancel()
         serverJob = null
     }
-
-    private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
 }
 
 @Composable
@@ -77,13 +100,24 @@ private fun BlueSpeakerApp(start: ((String) -> Unit) -> Unit, stop: () -> Unit) 
                             Icon(Icons.Rounded.Bluetooth, null, Modifier.size(42.dp))
                             Text(state, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium)
                             Text(
-                                if (running) "Keep this screen open while audio is streaming." else "Pair this phone with your computer, then tap Start.",
+                                when {
+                                    state == "Connected" -> "Audio from the BlueSpeaker Bridge is playing through this phone."
+                                    running -> "Keep BlueSpeaker running. Start the Windows bridge after pairing the phone."
+                                    else -> "Pair this phone with the computer in Windows Bluetooth settings, then tap Start."
+                                },
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Button(
                                 onClick = {
-                                    running = !running
-                                    if (running) start { state = it } else { stop(); state = "Ready" }
+                                    if (!running) {
+                                        running = true
+                                        state = "Starting…"
+                                        start { newState -> state = newState }
+                                    } else {
+                                        stop()
+                                        running = false
+                                        state = "Ready"
+                                    }
                                 },
                                 modifier = Modifier.fillMaxWidth().height(56.dp),
                                 shape = RoundedCornerShape(18.dp)
@@ -92,7 +126,7 @@ private fun BlueSpeakerApp(start: ((String) -> Unit) -> Unit, stop: () -> Unit) 
                     }
                 }
 
-                Text("48 kHz stereo • Bluetooth Classic • Local only", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Bluetooth Classic • Local only • No internet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
