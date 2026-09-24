@@ -244,99 +244,130 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderTracker() {
-        val root = page("Tracker", "Kanban board for pending and completed notices")
+        val scroll = ScrollView(this)
+        val root = page("Tracker", "Pending and completed notices")
         val pending = notices.filter { it.serviceStatus != "SERVED" }
         val completed = notices.filter { it.serviceStatus == "SERVED" }
+
         root.addView(TextView(this).apply {
             text = pending.size.toString() + " pending    •    " + completed.size + " completed"
             alpha = .7f
-            setPadding(0, 0, 0, dp(12))
+            setPadding(0, 0, 0, dp(14))
         })
 
-        val horizontal = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
-        val board = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        board.addView(kanbanColumn("Pending", pending, false), LinearLayout.LayoutParams(dp(320), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(14) })
-        board.addView(kanbanColumn("Completed", completed, true), LinearLayout.LayoutParams(dp(320), ViewGroup.LayoutParams.WRAP_CONTENT))
-        horizontal.addView(board)
-        root.addView(horizontal, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        content.addView(root)
+        root.addView(sectionHeader("Pending", pending.size))
+        if (pending.isEmpty()) root.addView(emptyState("No pending notices"))
+        else pending.forEach { root.addView(noticeListRow(it), lp(bottom = 8)) }
+
+        root.addView(sectionHeader("Completed", completed.size), lp(top = 18))
+        if (completed.isEmpty()) root.addView(emptyState("No completed notices"))
+        else completed.forEach { root.addView(noticeListRow(it), lp(bottom = 8)) }
+
+        scroll.addView(root)
+        content.addView(scroll)
     }
 
-    private fun kanbanColumn(title: String, items: List<NoticeEntity>, completed: Boolean) = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(dp(10), dp(10), dp(10), dp(12))
-        background = ContextCompat.getDrawable(this@MainActivity, if (completed) R.drawable.bg_column_complete else R.drawable.bg_column_pending)
-
-        addView(LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            addView(TextView(this@MainActivity).apply {
-                text = title
-                textSize = 18f
-                setTypeface(typeface, Typeface.BOLD)
-            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            addView(TextView(this@MainActivity).apply {
-                text = items.size.toString()
-                gravity = Gravity.CENTER
-                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_count)
-                setPadding(dp(10), dp(4), dp(10), dp(4))
-            })
-        }, lp(bottom = 10))
-
-        if (items.isEmpty()) addView(emptyState(if (completed) "No completed notices" else "Nothing pending"))
-        items.forEach { addView(noticeCard(it), lp(bottom = 10)) }
+    private fun sectionHeader(title: String, count: Int) = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(0, dp(4), 0, dp(10))
+        addView(TextView(this@MainActivity).apply {
+            text = title
+            textSize = 18f
+            setTypeface(typeface, Typeface.BOLD)
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        addView(TextView(this@MainActivity).apply {
+            text = count.toString()
+            gravity = Gravity.CENTER
+            background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_count)
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+        })
     }
 
-    private fun noticeCard(n: NoticeEntity) = card().apply {
-        isClickable = true
-        setOnClickListener { showNotice(n) }
+    private fun noticeListRow(n: NoticeEntity) = card().apply {
         addView(LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(13), dp(14), dp(13))
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                addView(TextView(this@MainActivity).apply {
-                    text = n.caseNumber.ifBlank { n.cnr }
-                    textSize = 16f
-                    setTypeface(typeface, Typeface.BOLD)
+
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setOnClickListener { showNotice(n) }
+                    addView(TextView(this@MainActivity).apply {
+                        text = n.caseNumber.ifBlank { n.cnr }
+                        textSize = 15f
+                        setTypeface(typeface, Typeface.BOLD)
+                    })
+                    addView(TextView(this@MainActivity).apply {
+                        text = n.caseTitle.ifBlank {
+                            when (n.fetchedState) {
+                                "FETCHING" -> "Fetching case details…"
+                                "RETRY_REQUIRED" -> "Fetch failed"
+                                else -> "Queued for processing…"
+                            }
+                        }
+                        textSize = 13f
+                        alpha = .72f
+                        setPadding(0, dp(3), 0, 0)
+                    })
                 }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
                 addView(TextView(this@MainActivity).apply {
                     text = if (n.serviceStatus == "SERVED") "Served" else statusLabel(n)
-                    textSize = 12f
-                    setPadding(dp(9), dp(4), dp(9), dp(4))
+                    textSize = 11f
+                    setPadding(dp(8), dp(4), dp(8), dp(4))
                     background = ContextCompat.getDrawable(this@MainActivity,
                         if (n.serviceStatus == "SERVED") R.drawable.bg_chip_complete else R.drawable.bg_chip_pending)
                 })
             })
-            addView(TextView(this@MainActivity).apply {
-                text = n.caseTitle.ifBlank {
-                    when (n.fetchedState) {
-                        "FETCHING" -> "Fetching case details…"
-                        "RETRY_REQUIRED" -> "Fetch failed"
-                        else -> "Queued for processing…"
-                    }
+
+            val meta = buildString {
+                if (n.nextHearing.isNotBlank()) append(n.nextHearing)
+                if (n.processServer.isNotBlank()) {
+                    if (isNotEmpty()) append("  •  ")
+                    append(n.processServer)
+                } else {
+                    if (isNotEmpty()) append("  •  ")
+                    append("Unassigned")
                 }
-                textSize = 14f
-                alpha = .75f
-                setPadding(0, dp(5), 0, dp(7))
-            })
-            if (n.nextHearing.isNotBlank()) addView(TextView(this@MainActivity).apply {
-                text = "▣  " + n.nextHearing
-                textSize = 13f
-            })
+            }
             addView(TextView(this@MainActivity).apply {
-                text = if (n.processServer.isBlank()) "Process server: unassigned" else "Process server: " + n.processServer
+                text = meta
                 textSize = 12f
-                alpha = .65f
-                setPadding(0, dp(7), 0, 0)
+                alpha = .6f
+                setPadding(0, dp(6), 0, dp(8))
             })
+
+            val actions = LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+
+            actions.addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                text = if (n.processServer.isBlank()) "Assign" else "Reassign"
+                isAllCaps = false
+                minHeight = dp(40)
+                setOnClickListener { assignProcessServer(n) }
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
+
+            actions.addView(MaterialButton(this@MainActivity).apply {
+                text = if (n.serviceStatus == "SERVED") "Mark Unserved" else "Mark Served"
+                isAllCaps = false
+                minHeight = dp(40)
+                setOnClickListener { toggleServed(n) }
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+            addView(actions)
+
             if (n.fetchedState == "FETCHING" || n.fetchedState == "QUEUED") {
-                addView(ProgressBar(this@MainActivity, null, android.R.attr.progressBarStyleHorizontal).apply { isIndeterminate = true },
-                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(4)).apply { topMargin = dp(9) })
+                addView(ProgressBar(this@MainActivity, null, android.R.attr.progressBarStyleHorizontal).apply {
+                    isIndeterminate = true
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(4)).apply { topMargin = dp(8) })
             } else if (n.fetchedState == "RETRY_REQUIRED") {
-                addView(outlineButton("↻  Refresh") { retryNotice(n) },
-                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply { topMargin = dp(8) })
+                addView(outlineButton("↻  Refresh") { retryNotice(n) }, lp(top = 8))
             }
         })
     }
@@ -361,7 +392,7 @@ class MainActivity : AppCompatActivity() {
                 .setMessage("Not Served notices are reminded before the next hearing. Marking Served cancels pending reminders.")
                 .setPositiveButton("OK", null).show()
         }, lp(bottom = 10))
-        root.addView(settingCard("♟", "Process Servers", "See current assignments") { showProcessServerSummary() }, lp(bottom = 10))
+        root.addView(settingCard("♟", "Process Servers", processServerSummary()) { showProcessServerSettings() }, lp(bottom = 10))
         root.addView(settingCard("ⓘ", "App Info", "Notice Tracker • Debug") {
             AlertDialog.Builder(this).setTitle("Notice Tracker")
                 .setMessage("Standalone personal app. Default backend: " + BackendConfig.DEFAULT_URL)
@@ -577,18 +608,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun assignProcessServer(n: NoticeEntity) {
-        val input = EditText(this).apply {
-            hint = "Process server name"
-            setText(n.processServer)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
-            setSelection(text.length)
+        val servers = processServers()
+        if (servers.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setTitle("No Process Servers")
+                .setMessage("Add process-server names in Settings first.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Open Settings") { _, _ ->
+                    activeTab = TAB_SETTINGS
+                    bottomNav.selectedItemId = TAB_SETTINGS
+                    renderCurrentTab()
+                }.show()
+            return
         }
-        AlertDialog.Builder(this).setTitle("Assign Process Server").setView(input)
+
+        val items = servers.toTypedArray()
+        val current = servers.indexOf(n.processServer)
+        AlertDialog.Builder(this)
+            .setTitle("Assign Process Server")
+            .setSingleChoiceItems(items, current) { dialog, which ->
+                saveNotice(n.copy(
+                    processServer = servers[which],
+                    updatedAt = System.currentTimeMillis()
+                ))
+                dialog.dismiss()
+            }
             .setNegativeButton("Cancel", null)
-            .setPositiveButton("Assign") { _, _ ->
-                val name = input.text.toString().trim()
-                if (name.isNotBlank()) saveNotice(n.copy(processServer = name, updatedAt = System.currentTimeMillis()))
-            }.show()
+            .show()
     }
 
     private fun toggleServed(n: NoticeEntity) {
@@ -724,11 +770,86 @@ class MainActivity : AppCompatActivity() {
         return (listOf(header) + rows).joinToString("\n")
     }
 
-    private fun showProcessServerSummary() {
-        val names = notices.map { it.processServer }.filter { it.isNotBlank() }.groupingBy { it }.eachCount()
-        val body = if (names.isEmpty()) "No process servers assigned yet."
-        else names.entries.sortedByDescending { it.value }.joinToString("\n") { it.key + " — " + it.value + " notice(s)" }
-        AlertDialog.Builder(this).setTitle("Process Servers").setMessage(body).setPositiveButton("OK", null).show()
+    private fun processServers(): List<String> {
+        val raw = prefs.getString(KEY_PROCESS_SERVERS, "").orEmpty()
+        return raw.split("\n").map { it.trim() }.filter { it.isNotBlank() }.distinct()
+    }
+
+    private fun saveProcessServers(values: List<String>) {
+        prefs.edit().putString(KEY_PROCESS_SERVERS, values.joinToString("\n")).apply()
+    }
+
+    private fun processServerSummary(): String {
+        val servers = processServers()
+        return if (servers.isEmpty()) "Add your process servers"
+        else servers.joinToString(", ")
+    }
+
+    private fun showProcessServerSettings() {
+        val servers = processServers().toMutableList()
+
+        fun reopen() {
+            showProcessServerSettings()
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(6), dp(20), dp(4))
+        }
+
+        if (servers.isEmpty()) {
+            container.addView(TextView(this).apply {
+                text = "No process servers added yet."
+                alpha = .65f
+                setPadding(0, dp(8), 0, dp(12))
+            })
+        } else {
+            servers.forEachIndexed { index, name ->
+                container.addView(LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(0, dp(6), 0, dp(6))
+                    addView(TextView(this@MainActivity).apply {
+                        text = name
+                        textSize = 15f
+                    }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                    addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonTextStyle).apply {
+                        text = "Remove"
+                        isAllCaps = false
+                        setOnClickListener {
+                            val updated = servers.toMutableList().apply { removeAt(index) }
+                            saveProcessServers(updated)
+                            reopen()
+                        }
+                    })
+                })
+            }
+        }
+
+        container.addView(primaryButton("+ Add Process Server") {
+            val input = EditText(this).apply {
+                hint = "Name"
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            }
+            AlertDialog.Builder(this)
+                .setTitle("Add Process Server")
+                .setView(input)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Add") { _, _ ->
+                    val name = input.text.toString().trim()
+                    if (name.isNotBlank()) {
+                        val updated = (servers + name).distinct()
+                        saveProcessServers(updated)
+                        showProcessServerSettings()
+                    }
+                }.show()
+        }, lp(top = 12))
+
+        AlertDialog.Builder(this)
+            .setTitle("Process Servers")
+            .setView(ScrollView(this).apply { addView(container) })
+            .setPositiveButton("Done", null)
+            .show()
     }
 
     private fun mergeCase(old: NoticeEntity, rawJson: String): NoticeEntity {
@@ -838,6 +959,7 @@ class MainActivity : AppCompatActivity() {
         private const val TAB_SETTINGS = 3
         private const val PREFS = "notice_tracker_settings"
         private const val KEY_THEME = "theme"
+        private const val KEY_PROCESS_SERVERS = "process_servers"
         private val FIELD_KEYS = listOf(
             "cnr" to "CNR",
             "court" to "Court",
