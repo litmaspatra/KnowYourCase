@@ -412,49 +412,79 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderTracker() {
-        val scroll = ScrollView(this)
-        val root = page("Tracker", "Pending and completed notices")
+        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val root = page()
+
         val pending = notices.filter { it.serviceStatus == "PENDING" }
         val completed = notices.filter { it.serviceStatus == "SERVED" || it.serviceStatus == "UNSERVED" }
 
-        root.addView(TextView(this).apply {
-            text = pending.size.toString() + " pending    •    " + completed.size + " completed"
-            alpha = .7f
-            setPadding(0, 0, 0, dp(14))
-        })
+        root.addView(heading(
+            when (trackerFilter) {
+                "COMPLETED" -> "Completed service"
+                "ALL" -> "All notices"
+                else -> "Pending work"
+            },
+            when (trackerFilter) {
+                "COMPLETED" -> completed.size.toString() + " completed notices"
+                "ALL" -> notices.size.toString() + " total notices"
+                else -> pending.size.toString() + " notices need action"
+            }
+        ), lp(bottom = 14))
 
-        root.addView(sectionHeader("Pending", pending.size))
-        if (pending.isEmpty()) root.addView(emptyState("No pending notices"))
-        else pending.forEach { root.addView(noticeListRow(it), lp(bottom = 8)) }
+        val filters = MaterialButtonToggleGroup(this).apply {
+            isSingleSelection = true
+            isSelectionRequired = true
+        }
+        val pendingButton = filterButton("Pending", "PENDING")
+        val completedButton = filterButton("Completed", "COMPLETED")
+        val allButton = filterButton("All", "ALL")
+        filters.addView(pendingButton, LinearLayout.LayoutParams(0, dp(44), 1f))
+        filters.addView(completedButton, LinearLayout.LayoutParams(0, dp(44), 1f))
+        filters.addView(allButton, LinearLayout.LayoutParams(0, dp(44), 1f))
+        when (trackerFilter) {
+            "COMPLETED" -> completedButton.isChecked = true
+            "ALL" -> allButton.isChecked = true
+            else -> pendingButton.isChecked = true
+        }
+        root.addView(filters, lp(bottom = 18))
 
-        root.addView(sectionHeader("Completed", completed.size), lp(top = 18))
-        if (completed.isEmpty()) root.addView(emptyState("No completed notices"))
-        else completed.forEach { root.addView(noticeListRow(it), lp(bottom = 8)) }
+        val shown = when (trackerFilter) {
+            "COMPLETED" -> completed
+            "ALL" -> notices
+            else -> pending
+        }
+
+        if (shown.isEmpty()) {
+            val emptyTitle = if (trackerFilter == "COMPLETED") "No completed notices" else "Nothing here"
+            val emptyCopy = if (trackerFilter == "PENDING") "Scanned notices stay here until you mark them served or unserved."
+            else "Completed service will appear here."
+            root.addView(emptyPanel(emptyTitle, emptyCopy))
+        } else {
+            shown.forEach { root.addView(noticeListRow(it), lp(bottom = 12)) }
+        }
 
         scroll.addView(root)
         content.addView(scroll)
     }
 
-    private fun sectionHeader(title: String, count: Int) = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(0, dp(4), 0, dp(10))
-        addView(TextView(this@MainActivity).apply {
-            text = title
-            textSize = 18f
-            setTypeface(typeface, Typeface.BOLD)
-        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        addView(TextView(this@MainActivity).apply {
-            text = count.toString()
-            gravity = Gravity.CENTER
-            background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_count)
-            setPadding(dp(10), dp(4), dp(10), dp(4))
-        })
+    private fun filterButton(label: String, value: String) = MaterialButton(
+        this,
+        null,
+        com.google.android.material.R.attr.materialButtonOutlinedStyle
+    ).apply {
+        text = label
+        isAllCaps = false
+        isCheckable = true
+        isSingleLine = true
+        setOnClickListener {
+            trackerFilter = value
+            renderTracker()
+        }
     }
 
     private fun noticeListRow(n: NoticeEntity) = MaterialCardView(this).apply {
-        radius = dp(22).toFloat()
-        cardElevation = dp(3).toFloat()
+        radius = dp(20).toFloat()
+        cardElevation = 0f
         strokeWidth = dp(1)
         strokeColor = themeColor(com.google.android.material.R.attr.colorOutlineVariant)
         setCardBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
@@ -464,17 +494,16 @@ class MainActivity : AppCompatActivity() {
 
         addView(LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(16), dp(18), dp(16))
+            setPadding(dp(16), dp(15), dp(16), dp(15))
 
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-
                 addView(LinearLayout(this@MainActivity).apply {
                     orientation = LinearLayout.VERTICAL
                     addView(TextView(this@MainActivity).apply {
                         text = n.caseNumber.ifBlank { n.cnr }
-                        textSize = 17f
+                        textSize = 16f
                         setTypeface(typeface, Typeface.BOLD)
                         maxLines = 1
                         ellipsize = android.text.TextUtils.TruncateAt.END
@@ -482,27 +511,12 @@ class MainActivity : AppCompatActivity() {
                     addView(TextView(this@MainActivity).apply {
                         text = n.cnr
                         textSize = 11f
-                        alpha = .55f
+                        alpha = .52f
                         setPadding(0, dp(2), 0, 0)
                     })
                 }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
 
-                addView(TextView(this@MainActivity).apply {
-                    text = when (n.serviceStatus) {
-                        "SERVED" -> "Served"
-                        "UNSERVED" -> "Unserved"
-                        else -> statusLabel(n)
-                    }
-                    textSize = 12f
-                    setTypeface(typeface, Typeface.BOLD)
-                    isSingleLine = true
-                    setPadding(dp(11), dp(5), dp(11), dp(5))
-                    background = ContextCompat.getDrawable(
-                        this@MainActivity,
-                        if (n.serviceStatus == "PENDING") R.drawable.bg_chip_pending
-                        else R.drawable.bg_chip_complete
-                    )
-                })
+                addView(statusChip(n))
             })
 
             addView(TextView(this@MainActivity).apply {
@@ -520,27 +534,22 @@ class MainActivity : AppCompatActivity() {
                 setPadding(0, dp(10), 0, dp(12))
             })
 
-            val info = LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(12), dp(10), dp(12), dp(10))
-                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_notice_info)
-            }
+            if (n.courtName.isNotBlank()) addView(metaLine("Court", n.courtName))
+            addView(metaLine("Next hearing", n.nextHearing.ifBlank { "Not scheduled" }))
+            addView(metaLine("Process server", n.processServer.ifBlank { "Unassigned" }))
 
-            info.addView(TextView(this@MainActivity).apply {
-                text = if (n.nextHearing.isBlank()) "Next hearing  —" else "Next hearing  •  " + n.nextHearing
-                textSize = 13f
-                setTypeface(typeface, Typeface.BOLD)
-                isSingleLine = true
-            })
-            info.addView(TextView(this@MainActivity).apply {
-                text = if (n.processServer.isBlank()) "Process server  •  Unassigned" else "Process server  •  " + n.processServer
-                textSize = 13f
-                alpha = .72f
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                setPadding(0, dp(5), 0, 0)
-            })
-            addView(info, lp(bottom = 12))
+            if (n.fetchedState == "FETCHING" || n.fetchedState == "QUEUED") {
+                addView(ProgressBar(
+                    this@MainActivity,
+                    null,
+                    android.R.attr.progressBarStyleHorizontal
+                ).apply { isIndeterminate = true },
+                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3)).apply {
+                        topMargin = dp(12)
+                    })
+            } else if (n.fetchedState == "RETRY_REQUIRED") {
+                addView(outlineButton("Refresh case details") { retryNotice(n) }, lp(top = 12))
+            }
 
             addView(MaterialButton(
                 this@MainActivity,
@@ -553,21 +562,13 @@ class MainActivity : AppCompatActivity() {
                 iconPadding = dp(7)
                 isAllCaps = false
                 isSingleLine = true
-                maxLines = 1
-                textSize = 13f
-                minHeight = dp(44)
-                setOnClickListener {
-                    assignProcessServer(n)
-                }
-            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                bottomMargin = dp(9)
-            })
+                minHeight = dp(48)
+                setOnClickListener { assignProcessServer(n) }
+            }, lp(top = 12, bottom = 8))
 
             if (n.serviceStatus == "PENDING") {
                 addView(LinearLayout(this@MainActivity).apply {
                     orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-
                     addView(MaterialButton(this@MainActivity).apply {
                         text = "Served"
                         setIconResource(R.drawable.ic_action_served)
@@ -575,13 +576,9 @@ class MainActivity : AppCompatActivity() {
                         iconPadding = dp(6)
                         isAllCaps = false
                         isSingleLine = true
-                        maxLines = 1
-                        textSize = 13f
-                        minHeight = dp(44)
+                        minHeight = dp(48)
                         setOnClickListener { markServiceStatus(n, "SERVED") }
-                    }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                        marginEnd = dp(8)
-                    })
+                    }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
 
                     addView(MaterialButton(
                         this@MainActivity,
@@ -594,9 +591,7 @@ class MainActivity : AppCompatActivity() {
                         iconPadding = dp(6)
                         isAllCaps = false
                         isSingleLine = true
-                        maxLines = 1
-                        textSize = 13f
-                        minHeight = dp(44)
+                        minHeight = dp(48)
                         setOnClickListener { markServiceStatus(n, "UNSERVED") }
                     }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
                 })
@@ -604,31 +599,49 @@ class MainActivity : AppCompatActivity() {
                 addView(MaterialButton(
                     this@MainActivity,
                     null,
-                    com.google.android.material.R.attr.materialButtonOutlinedStyle
+                    com.google.android.material.R.attr.materialButtonTextStyle
                 ).apply {
                     text = "Move to pending"
                     isAllCaps = false
-                    isSingleLine = true
-                    maxLines = 1
-                    textSize = 13f
-                    minHeight = dp(44)
+                    minHeight = dp(48)
                     setOnClickListener { markServiceStatus(n, "PENDING") }
-                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-            }
-
-            if (n.fetchedState == "FETCHING" || n.fetchedState == "QUEUED") {
-                addView(ProgressBar(
-                    this@MainActivity,
-                    null,
-                    android.R.attr.progressBarStyleHorizontal
-                ).apply { isIndeterminate = true },
-                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(4)).apply {
-                        topMargin = dp(12)
-                    })
-            } else if (n.fetchedState == "RETRY_REQUIRED") {
-                addView(outlineButton("Refresh case details") { retryNotice(n) }, lp(top = 10))
+                })
             }
         })
+    }
+
+    private fun statusChip(n: NoticeEntity) = TextView(this).apply {
+        text = when (n.serviceStatus) {
+            "SERVED" -> "Served"
+            "UNSERVED" -> "Unserved"
+            else -> statusLabel(n)
+        }
+        textSize = 12f
+        setTypeface(typeface, Typeface.BOLD)
+        isSingleLine = true
+        setPadding(dp(10), dp(5), dp(10), dp(5))
+        background = roundedSurface(
+            if (n.serviceStatus == "PENDING") com.google.android.material.R.attr.colorSecondaryContainer
+            else com.google.android.material.R.attr.colorPrimaryContainer,
+            999
+        )
+    }
+
+    private fun metaLine(label: String, value: String) = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.TOP
+        setPadding(0, dp(3), 0, dp(3))
+        addView(TextView(this@MainActivity).apply {
+            text = label
+            textSize = 12f
+            alpha = .55f
+        }, LinearLayout.LayoutParams(dp(92), ViewGroup.LayoutParams.WRAP_CONTENT))
+        addView(TextView(this@MainActivity).apply {
+            text = value
+            textSize = 13f
+            maxLines = 2
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
     }
 
     private fun statusLabel(n: NoticeEntity) = when (n.fetchedState) {
