@@ -596,11 +596,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun filterButton(label: String, value: String) = outlineButton(label) {
         trackerFilter = value
-        renderTracker()
-        animateContentIn()
+        renderCurrentTab()
     }.apply {
         isCheckable = true
-        applyType(TextRole.LABEL, true)
+        isAllCaps = false
+        minWidth = 0
+        textSize = 13f
+        maxLines = 1
+        ellipsize = null
+        setPadding(dp(2), 0, dp(2), 0)
     }
 
     private fun noticeListRow(n: NoticeEntity) = designCard().apply {
@@ -685,6 +689,11 @@ class MainActivity : AppCompatActivity() {
                     R.drawable.ic_nt_assign
                 ) { assignProcessServer(n) },
                 lp(top = UiTokens.Space.SM, bottom = UiTokens.Space.XS)
+            )
+
+            addView(
+                outlineButton("Refresh details", R.drawable.ic_nt_sync) { retryNotice(n) },
+                lp(bottom = UiTokens.Space.XS)
             )
 
             if (n.serviceStatus == "PENDING") {
@@ -1172,6 +1181,14 @@ class MainActivity : AppCompatActivity() {
             })
         }
 
+        box.addView(
+            outlineButton("Refresh details", R.drawable.ic_nt_sync) {
+                sheet.dismiss()
+                retryNotice(n)
+            },
+            lp(top = UiTokens.Space.XS)
+        )
+
         scroll.addView(box)
         sheet.setContentView(scroll)
         sheet.show()
@@ -1503,9 +1520,19 @@ class MainActivity : AppCompatActivity() {
                 hint = "Enter full name",
                 inputTypeValue = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
             )
+            val fieldWrap = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(
+                    dp(UiTokens.Space.MD),
+                    dp(UiTokens.Space.XS),
+                    dp(UiTokens.Space.MD),
+                    0
+                )
+                addView(field.first)
+            }
             val addDialog = MaterialAlertDialogBuilder(this)
                 .setTitle("Add process server")
-                .setView(field.first)
+                .setView(fieldWrap)
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Add", null)
                 .create()
@@ -1657,15 +1684,18 @@ class MainActivity : AppCompatActivity() {
     ): Pair<TextInputLayout, TextInputEditText> {
         val input = TextInputEditText(this).apply {
             setText(value)
-            this.hint = hint
             inputType = inputTypeValue
             applyType(TextRole.BODY)
-            minHeight = dp(UiTokens.MIN_TOUCH)
+            minHeight = dp(56)
+            setPadding(dp(UiTokens.Space.SM), 0, dp(UiTokens.Space.SM), 0)
             if (value.isNotBlank()) setSelection(text?.length ?: 0)
         }
         val layout = TextInputLayout(this).apply {
             this.hint = label
+            placeholderText = hint
             boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            boxStrokeWidth = dp(1)
+            boxStrokeWidthFocused = dp(2)
             setBoxCornerRadii(
                 dp(UiTokens.Radius.MEDIUM).toFloat(),
                 dp(UiTokens.Radius.MEDIUM).toFloat(),
