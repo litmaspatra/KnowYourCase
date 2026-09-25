@@ -313,21 +313,41 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun noticeListRow(n: NoticeEntity) = card().apply {
+    private fun noticeListRow(n: NoticeEntity) = MaterialCardView(this).apply {
+        radius = dp(22).toFloat()
+        cardElevation = dp(3).toFloat()
+        strokeWidth = dp(1)
+        strokeColor = themeColor(com.google.android.material.R.attr.colorOutlineVariant)
+        setCardBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
         isClickable = true
+        isFocusable = true
         setOnClickListener { showNotice(n) }
+
         addView(LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(14), dp(16), dp(14))
+            setPadding(dp(18), dp(16), dp(18), dp(16))
 
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                addView(TextView(this@MainActivity).apply {
-                    text = n.caseNumber.ifBlank { n.cnr }
-                    textSize = 17f
-                    setTypeface(typeface, Typeface.BOLD)
+
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(TextView(this@MainActivity).apply {
+                        text = n.caseNumber.ifBlank { n.cnr }
+                        textSize = 17f
+                        setTypeface(typeface, Typeface.BOLD)
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                    })
+                    addView(TextView(this@MainActivity).apply {
+                        text = n.cnr
+                        textSize = 11f
+                        alpha = .55f
+                        setPadding(0, dp(2), 0, 0)
+                    })
                 }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
                 addView(TextView(this@MainActivity).apply {
                     text = when (n.serviceStatus) {
                         "SERVED" -> "Served"
@@ -336,7 +356,8 @@ class MainActivity : AppCompatActivity() {
                     }
                     textSize = 12f
                     setTypeface(typeface, Typeface.BOLD)
-                    setPadding(dp(10), dp(5), dp(10), dp(5))
+                    isSingleLine = true
+                    setPadding(dp(11), dp(5), dp(11), dp(5))
                     background = ContextCompat.getDrawable(
                         this@MainActivity,
                         if (n.serviceStatus == "PENDING") R.drawable.bg_chip_pending
@@ -349,87 +370,103 @@ class MainActivity : AppCompatActivity() {
                 text = n.caseTitle.ifBlank {
                     when (n.fetchedState) {
                         "FETCHING" -> "Fetching case details…"
-                        "RETRY_REQUIRED" -> "Fetch failed — tap Refresh"
-                        else -> "Queued for processing…"
+                        "RETRY_REQUIRED" -> "Case details need refresh"
+                        else -> "Waiting for case details…"
                     }
                 }
                 textSize = 14f
-                alpha = .78f
-                setPadding(0, dp(6), 0, dp(10))
+                alpha = .82f
+                maxLines = 2
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setPadding(0, dp(10), 0, dp(12))
             })
 
-            if (n.nextHearing.isNotBlank()) {
-                addView(TextView(this@MainActivity).apply {
-                    text = "▣  Next hearing  " + n.nextHearing
-                    textSize = 13f
-                    setTypeface(typeface, Typeface.BOLD)
-                    setPadding(0, 0, 0, dp(7))
-                })
+            val info = LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_notice_info)
             }
 
-            addView(TextView(this@MainActivity).apply {
-                text = if (n.processServer.isBlank())
-                    "♟  Process server: Unassigned"
-                else
-                    "♟  Process server: " + n.processServer
+            info.addView(TextView(this@MainActivity).apply {
+                text = if (n.nextHearing.isBlank()) "Next hearing  —" else "Next hearing  •  " + n.nextHearing
+                textSize = 13f
+                setTypeface(typeface, Typeface.BOLD)
+                isSingleLine = true
+            })
+            info.addView(TextView(this@MainActivity).apply {
+                text = if (n.processServer.isBlank()) "Process server  •  Unassigned" else "Process server  •  " + n.processServer
                 textSize = 13f
                 alpha = .72f
-                setPadding(0, 0, 0, dp(10))
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setPadding(0, dp(5), 0, 0)
             })
+            addView(info, lp(bottom = 12))
 
-            val actions = LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-
-            actions.addView(MaterialButton(
+            addView(MaterialButton(
                 this@MainActivity,
                 null,
                 com.google.android.material.R.attr.materialButtonOutlinedStyle
             ).apply {
-                text = if (n.processServer.isBlank()) "Assign" else "Reassign"
+                text = if (n.processServer.isBlank()) "Assign Process Server" else "Change Process Server"
                 isAllCaps = false
-                minHeight = dp(42)
+                isSingleLine = true
+                maxLines = 1
+                textSize = 13f
+                minHeight = dp(44)
                 setOnClickListener {
                     assignProcessServer(n)
                 }
-            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginEnd = dp(8)
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                bottomMargin = dp(9)
             })
 
             if (n.serviceStatus == "PENDING") {
-                actions.addView(MaterialButton(this@MainActivity).apply {
-                    text = "Served"
-                    isAllCaps = false
-                    minHeight = dp(42)
-                    setOnClickListener { markServiceStatus(n, "SERVED") }
-                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    marginEnd = dp(8)
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+
+                    addView(MaterialButton(this@MainActivity).apply {
+                        text = "Served"
+                        isAllCaps = false
+                        isSingleLine = true
+                        maxLines = 1
+                        textSize = 13f
+                        minHeight = dp(44)
+                        setOnClickListener { markServiceStatus(n, "SERVED") }
+                    }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        marginEnd = dp(8)
+                    })
+
+                    addView(MaterialButton(
+                        this@MainActivity,
+                        null,
+                        com.google.android.material.R.attr.materialButtonOutlinedStyle
+                    ).apply {
+                        text = "Unserved"
+                        isAllCaps = false
+                        isSingleLine = true
+                        maxLines = 1
+                        textSize = 13f
+                        minHeight = dp(44)
+                        setOnClickListener { markServiceStatus(n, "UNSERVED") }
+                    }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
                 })
-                actions.addView(MaterialButton(
-                    this@MainActivity,
-                    null,
-                    com.google.android.material.R.attr.materialButtonOutlinedStyle
-                ).apply {
-                    text = "Unserved"
-                    isAllCaps = false
-                    minHeight = dp(42)
-                    setOnClickListener { markServiceStatus(n, "UNSERVED") }
-                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             } else {
-                actions.addView(MaterialButton(
+                addView(MaterialButton(
                     this@MainActivity,
                     null,
                     com.google.android.material.R.attr.materialButtonOutlinedStyle
                 ).apply {
                     text = "Move to Pending"
                     isAllCaps = false
-                    minHeight = dp(42)
+                    isSingleLine = true
+                    maxLines = 1
+                    textSize = 13f
+                    minHeight = dp(44)
                     setOnClickListener { markServiceStatus(n, "PENDING") }
-                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 2f))
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             }
-
-            addView(actions)
 
             if (n.fetchedState == "FETCHING" || n.fetchedState == "QUEUED") {
                 addView(ProgressBar(
@@ -438,10 +475,10 @@ class MainActivity : AppCompatActivity() {
                     android.R.attr.progressBarStyleHorizontal
                 ).apply { isIndeterminate = true },
                     LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(4)).apply {
-                        topMargin = dp(10)
+                        topMargin = dp(12)
                     })
             } else if (n.fetchedState == "RETRY_REQUIRED") {
-                addView(outlineButton("↻  Refresh case details") { retryNotice(n) }, lp(top = 9))
+                addView(outlineButton("Refresh Case Details") { retryNotice(n) }, lp(top = 10))
             }
         })
     }
@@ -552,20 +589,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showManualEntry() {
-        val input = TextInputEditText(this).apply {
-            hint = "e.g. RJTO010012342026"
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
-        }
-        val wrapper = TextInputLayout(this).apply {
-            hint = "16-character CNR"
-            setPadding(dp(18), 0, dp(18), 0)
-            addView(input)
-        }
-        AlertDialog.Builder(this)
-            .setTitle("Enter CNR manually")
-            .setView(wrapper)
+        val field = modernTextField(
+            label = "CNR number",
+            value = "",
+            hint = "RJTO010012342026",
+            inputTypeValue = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+        )
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Enter CNR")
+            .setMessage("Enter the 16-character CNR printed on the notice.")
+            .setView(field.first)
             .setNegativeButton("Cancel", null)
-            .setPositiveButton("Add") { _, _ -> handleCnrInput(input.text?.toString().orEmpty()) }
+            .setPositiveButton("Add") { _, _ -> handleCnrInput(field.second.text?.toString().orEmpty()) }
             .show()
     }
 
@@ -739,26 +774,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showBackendDialog() {
-        val input = EditText(this).apply {
-            setText(BackendConfig.url(this@MainActivity))
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-            setSelection(text.length)
-        }
+        val field = modernTextField(
+            label = "Backend URL",
+            value = BackendConfig.url(this),
+            hint = BackendConfig.DEFAULT_URL,
+            inputTypeValue = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+        )
+
         val wrap = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), 0, dp(22), 0)
-            addView(input)
+            setPadding(dp(4), dp(4), dp(4), 0)
+            addView(field.first)
             addView(TextView(this@MainActivity).apply {
                 text = "Default: " + BackendConfig.DEFAULT_URL
                 textSize = 12f
-                alpha = .6f
-                setPadding(0, dp(8), 0, 0)
+                alpha = .58f
+                setPadding(dp(4), dp(10), dp(4), 0)
             })
         }
-        AlertDialog.Builder(this).setTitle("Backend Setup").setView(wrap)
-            .setNeutralButton("Use Default") { _, _ -> BackendConfig.reset(this); renderCurrentTab() }
+
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Backend Setup")
+            .setView(wrap)
+            .setNeutralButton("Use Default") { _, _ ->
+                BackendConfig.reset(this)
+                renderCurrentTab()
+            }
             .setNegativeButton("Cancel", null)
-            .setPositiveButton("Save") { _, _ -> BackendConfig.save(this, input.text.toString()); testBackend() }
+            .setPositiveButton("Save") { _, _ ->
+                BackendConfig.save(this, field.second.text?.toString().orEmpty())
+                testBackend()
+            }
             .show()
     }
 
@@ -938,17 +984,19 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            container.addView(primaryButton("+ Add Process Server") {
-                val input = EditText(this).apply {
-                    hint = "Name"
-                    inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
-                }
-                AlertDialog.Builder(this)
+            container.addView(primaryButton("Add Process Server") {
+                val field = modernTextField(
+                    label = "Process server name",
+                    value = "",
+                    hint = "Enter name",
+                    inputTypeValue = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+                )
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                     .setTitle("Add Process Server")
-                    .setView(input)
+                    .setView(field.first)
                     .setNegativeButton("Cancel", null)
                     .setPositiveButton("Add") { _, _ ->
-                        val name = input.text.toString().trim()
+                        val name = field.second.text?.toString().orEmpty().trim()
                         if (name.isNotBlank() && name !in servers) {
                             servers.add(name)
                             saveProcessServers(servers)
@@ -1011,9 +1059,40 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private fun modernTextField(
+        label: String,
+        value: String,
+        hint: String,
+        inputTypeValue: Int
+    ): Pair<TextInputLayout, TextInputEditText> {
+        val input = TextInputEditText(this).apply {
+            setText(value)
+            this.hint = hint
+            inputType = inputTypeValue
+            textSize = 16f
+            setPadding(dp(14), dp(4), dp(14), dp(4))
+            if (value.isNotBlank()) setSelection(text?.length ?: 0)
+        }
+        val layout = TextInputLayout(
+            this,
+            null,
+            com.google.android.material.R.attr.textInputOutlinedStyle
+        ).apply {
+            this.hint = label
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            boxCornerRadiusTopStart = dp(16).toFloat()
+            boxCornerRadiusTopEnd = dp(16).toFloat()
+            boxCornerRadiusBottomStart = dp(16).toFloat()
+            boxCornerRadiusBottomEnd = dp(16).toFloat()
+            setPadding(dp(4), dp(8), dp(4), dp(2))
+            addView(input)
+        }
+        return layout to input
+    }
+
     private fun card() = MaterialCardView(this).apply {
-        radius = dp(18).toFloat()
-        cardElevation = dp(1).toFloat()
+        radius = dp(20).toFloat()
+        cardElevation = dp(2).toFloat()
         strokeWidth = dp(1)
         setCardBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
         strokeColor = themeColor(com.google.android.material.R.attr.colorOutlineVariant)
@@ -1023,6 +1102,8 @@ class MainActivity : AppCompatActivity() {
         text = label
         textSize = 15f
         isAllCaps = false
+        isSingleLine = true
+        maxLines = 1
         minHeight = dp(52)
         setOnClickListener { click() }
     }
@@ -1032,6 +1113,8 @@ class MainActivity : AppCompatActivity() {
             text = label
             textSize = 14f
             isAllCaps = false
+            isSingleLine = true
+            maxLines = 1
             minHeight = dp(50)
             setOnClickListener { click() }
         }
