@@ -698,15 +698,18 @@ class MainActivity : AppCompatActivity() {
         val scroll = ScrollView(this).apply { isFillViewport = true }
         val root = page()
 
-        appRoot.addView(heading("Desk setup", "Keep the app aligned with how your process desk actually works."), lp(bottom = 18))
+        root.addView(
+            heading("Desk setup", "Keep the app aligned with how your process desk actually works."),
+            lp(bottom = UiTokens.Space.MD)
+        )
 
-        appRoot.addView(sectionTitle("Connection"))
-        appRoot.addView(backendHealthPanel(), lp(bottom = 14))
-        appRoot.addView(settingsRow(R.drawable.ic_ui_backend, "Backend", BackendConfig.url(this)) { showBackendDialog() })
+        root.addView(sectionTitle("Connection"))
+        root.addView(backendHealthPanel(), lp(bottom = UiTokens.Space.SM))
+        root.addView(settingsRow(R.drawable.ic_nt_backend, "Backend", BackendConfig.url(this)) { showBackendDialog() })
 
-        appRoot.addView(sectionTitle("Workflow"), lp(top = 22))
-        appRoot.addView(settingsRow(R.drawable.ic_ui_people, "Process servers", processServerSummary()) { showProcessServerSettings() })
-        appRoot.addView(settingsRow(R.drawable.ic_ui_reminder, "Reminders", "10, 7, 3, 1 days and hearing morning") {
+        root.addView(sectionTitle("Workflow"), lp(top = UiTokens.Space.LG))
+        root.addView(settingsRow(R.drawable.ic_nt_people, "Process servers", processServerSummary()) { showProcessServerSettings() })
+        root.addView(settingsRow(R.drawable.ic_nt_reminder, "Reminders", "10, 7, 3, 1 days and hearing morning") {
             MaterialAlertDialogBuilder(this)
                 .setTitle("Reminders")
                 .setMessage("Only Pending notices are reminded. Served and Unserved notices are complete and stop future reminders.")
@@ -714,13 +717,13 @@ class MainActivity : AppCompatActivity() {
                 .show()
         })
 
-        appRoot.addView(sectionTitle("Display & data"), lp(top = 22))
-        appRoot.addView(settingsRow(R.drawable.ic_ui_fields, "Visible fields", "Choose what appears in notice details and exports") { showFieldsDialog() })
-        appRoot.addView(settingsRow(R.drawable.ic_ui_appearance, "Appearance", themeSummary()) { showThemeDialog() })
-        appRoot.addView(settingsRow(R.drawable.ic_ui_export, "Export", "CSV spreadsheet or JSON backup") { showExportDialog() })
+        root.addView(sectionTitle("Display & data"), lp(top = UiTokens.Space.LG))
+        root.addView(settingsRow(R.drawable.ic_nt_fields, "Visible fields", "Choose what appears in notice details and exports") { showFieldsDialog() })
+        root.addView(settingsRow(R.drawable.ic_nt_appearance, "Appearance", themeSummary()) { showThemeDialog() })
+        root.addView(settingsRow(R.drawable.ic_nt_export, "Export", "CSV spreadsheet or JSON backup") { showExportDialog() })
 
-        appRoot.addView(sectionTitle("About"), lp(top = 22))
-        appRoot.addView(settingsRow(R.drawable.ic_ui_info, "Notice Tracker", "Debug build • Personal court-process utility") {
+        root.addView(sectionTitle("About"), lp(top = UiTokens.Space.LG))
+        root.addView(settingsRow(R.drawable.ic_nt_info, "Notice Tracker", "Debug build • Personal court-process utility") {
             MaterialAlertDialogBuilder(this)
                 .setTitle("Notice Tracker")
                 .setMessage("Local-first notice tracking with eCourts case lookup. Default backend: " + BackendConfig.DEFAULT_URL)
@@ -732,62 +735,89 @@ class MainActivity : AppCompatActivity() {
         content.addView(scroll)
     }
 
-    private fun backendHealthPanel() = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(14), dp(13), dp(10), dp(13))
-        background = roundedSurface(com.google.android.material.R.attr.colorSurfaceVariant, 18)
+    private fun backendHealthPanel() = designCard().apply {
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(
+                dp(UiTokens.Space.MD),
+                dp(UiTokens.Space.SM),
+                dp(UiTokens.Space.SM),
+                dp(UiTokens.Space.SM)
+            )
 
-        addView(View(this@MainActivity).apply {
-            background = android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.OVAL
-                setColor(when (backendHealth) {
-                    "ONLINE" -> 0xFF2E7D32.toInt()
-                    "OFFLINE" -> 0xFFC62828.toInt()
-                    "CHECKING" -> 0xFFE59D12.toInt()
-                    else -> 0xFF7A7F87.toInt()
+            if (backendHealth == "CHECKING") {
+                addView(com.google.android.material.progressindicator.CircularProgressIndicator(this@MainActivity).apply {
+                    isIndeterminate = true
+                    trackThickness = dp(UiTokens.Space.XXS)
+                    indicatorSize = dp(UiTokens.Icon.SUPPORT)
+                }, LinearLayout.LayoutParams(dp(UiTokens.MIN_TOUCH), dp(UiTokens.MIN_TOUCH)).apply {
+                    marginEnd = dp(UiTokens.Space.XS)
+                })
+            } else {
+                addView(ImageView(this@MainActivity).apply {
+                    setImageResource(
+                        when (backendHealth) {
+                            "ONLINE" -> R.drawable.ic_nt_check
+                            "OFFLINE" -> R.drawable.ic_nt_error
+                            else -> R.drawable.ic_nt_backend
+                        }
+                    )
+                    setColorFilter(
+                        when (backendHealth) {
+                            "ONLINE" -> getColor(R.color.nt_success)
+                            "OFFLINE" -> getColor(R.color.nt_error)
+                            else -> themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+                        }
+                    )
+                    contentDescription = null
+                    setPadding(
+                        dp(UiTokens.Space.SM),
+                        dp(UiTokens.Space.SM),
+                        dp(UiTokens.Space.SM),
+                        dp(UiTokens.Space.SM)
+                    )
+                }, LinearLayout.LayoutParams(dp(UiTokens.MIN_TOUCH), dp(UiTokens.MIN_TOUCH)).apply {
+                    marginEnd = dp(UiTokens.Space.XS)
                 })
             }
-        }, LinearLayout.LayoutParams(dp(10), dp(10)).apply { marginEnd = dp(12) })
 
-        addView(LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(TextView(this@MainActivity).apply {
-                text = when (backendHealth) {
-                    "ONLINE" -> "Backend online"
-                    "OFFLINE" -> "Backend offline"
-                    "CHECKING" -> "Checking backend…"
-                    else -> "Backend not checked"
-                }
-                textSize = 14f
-                setTypeface(typeface, Typeface.BOLD)
-            })
-            addView(TextView(this@MainActivity).apply {
-                text = BackendConfig.url(this@MainActivity)
-                textSize = 12f
-                alpha = .58f
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
-            })
-        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(TextView(this@MainActivity).apply {
+                    text = when (backendHealth) {
+                        "ONLINE" -> "Backend online"
+                        "OFFLINE" -> "Backend offline"
+                        "CHECKING" -> "Checking backend…"
+                        else -> "Backend not checked"
+                    }
+                    applyType(TextRole.BODY, true)
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = BackendConfig.url(this@MainActivity)
+                    applyType(TextRole.CAPTION)
+                    setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
+                })
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
 
-        addView(MaterialButton(
-            this@MainActivity,
-            null,
-            com.google.android.material.R.attr.materialButtonOutlinedStyle
-        ).apply {
-            text = if (backendHealth == "CHECKING") "Checking" else "Check"
-            isAllCaps = false
-            isEnabled = backendHealth != "CHECKING"
-            minHeight = dp(48)
-            setOnClickListener { testBackend() }
+            addView(outlineButton(if (backendHealth == "CHECKING") "Checking" else "Check") { testBackend() }.apply {
+                isEnabled = backendHealth != "CHECKING"
+            })
         })
     }
 
     private fun settingsRow(iconRes: Int, title: String, subtitle: String, click: () -> Unit) = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(4), dp(10), dp(2), dp(10))
+        minimumHeight = dp(UiTokens.MIN_TOUCH)
+        setPadding(
+            0,
+            dp(UiTokens.Space.XS),
+            0,
+            dp(UiTokens.Space.XS)
+        )
         isClickable = true
         isFocusable = true
         setOnClickListener { click() }
@@ -796,32 +826,47 @@ class MainActivity : AppCompatActivity() {
             setImageResource(iconRes)
             setColorFilter(themeColor(com.google.android.material.R.attr.colorPrimary))
             contentDescription = null
-            setPadding(dp(10), dp(10), dp(10), dp(10))
-            background = roundedSurface(com.google.android.material.R.attr.colorSecondaryContainer, 14)
-        }, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(13) })
+            setPadding(
+                dp(UiTokens.Space.SM),
+                dp(UiTokens.Space.SM),
+                dp(UiTokens.Space.SM),
+                dp(UiTokens.Space.SM)
+            )
+            background = roundedSurface(
+                com.google.android.material.R.attr.colorSecondaryContainer,
+                UiTokens.Radius.MEDIUM
+            )
+        }, LinearLayout.LayoutParams(dp(UiTokens.MIN_TOUCH), dp(UiTokens.MIN_TOUCH)).apply {
+            marginEnd = dp(UiTokens.Space.SM)
+        })
 
         addView(LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             addView(TextView(this@MainActivity).apply {
                 text = title
-                textSize = 15f
-                setTypeface(typeface, Typeface.BOLD)
+                applyType(TextRole.BODY, true)
             })
             addView(TextView(this@MainActivity).apply {
                 text = subtitle
-                textSize = 12f
-                alpha = .62f
+                applyType(TextRole.LABEL)
+                setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
                 maxLines = 2
                 ellipsize = android.text.TextUtils.TruncateAt.END
-                setPadding(0, dp(2), 0, 0)
+                setPadding(0, dp(UiTokens.Space.XXS), 0, 0)
             })
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
 
-        addView(TextView(this@MainActivity).apply {
-            text = "›"
-            textSize = 24f
-            alpha = .34f
-        })
+        addView(ImageView(this@MainActivity).apply {
+            setImageResource(R.drawable.ic_nt_notices)
+            setColorFilter(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+            contentDescription = "Open " + title
+            setPadding(
+                dp(UiTokens.Space.SM),
+                dp(UiTokens.Space.SM),
+                dp(UiTokens.Space.SM),
+                dp(UiTokens.Space.SM)
+            )
+        }, LinearLayout.LayoutParams(dp(UiTokens.MIN_TOUCH), dp(UiTokens.MIN_TOUCH)))
     }
 
     private fun showManualEntry() {
