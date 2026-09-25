@@ -1,12 +1,15 @@
 package com.knowyourcase.notice
 
 import android.Manifest
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -25,6 +28,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
@@ -32,9 +36,11 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.knowyourcase.notice.data.api.BackendConfig
 import com.knowyourcase.notice.data.api.RetrofitClient
+import com.knowyourcase.notice.ui.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -42,6 +48,7 @@ import java.time.LocalDate
 
 class MainActivity : AppCompatActivity() {
     private val db by lazy { NoticeDatabase.get(this) }
+    private lateinit var appRoot: LinearLayout
     private lateinit var content: FrameLayout
     private lateinit var bottomNav: BottomNavigationView
     private lateinit var toolbar: MaterialToolbar
@@ -89,11 +96,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         applySavedTheme()
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         buildShell()
         requestNotificationPermission()
+        appRoot.post { showFirstRunIfNeeded() }
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { db.notices().recoverInterruptedFetches() }
             reloadAndRender()
@@ -144,7 +153,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildShell() {
-        val root = LinearLayout(this).apply {
+        appRoot = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
         }
@@ -155,17 +164,17 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
             elevation = 0f
         }
-        root.addView(toolbar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        appRoot.addView(toolbar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         content = FrameLayout(this).apply {
             setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
         }
-        root.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        appRoot.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         bottomNav = BottomNavigationView(this).apply {
-            menu.add(0, TAB_HOME, 0, "Desk").setIcon(R.drawable.ic_nav_desk)
-            menu.add(0, TAB_TRACK, 1, "Notices").setIcon(R.drawable.ic_nav_notices)
-            menu.add(0, TAB_SETTINGS, 2, "Settings").setIcon(R.drawable.ic_nav_settings)
+            menu.add(0, TAB_HOME, 0, "Desk").setIcon(R.drawable.ic_nt_desk)
+            menu.add(0, TAB_TRACK, 1, "Notices").setIcon(R.drawable.ic_nt_notices)
+            menu.add(0, TAB_SETTINGS, 2, "Settings").setIcon(R.drawable.ic_nt_settings)
             selectedItemId = TAB_HOME
             labelVisibilityMode = BottomNavigationView.LABEL_VISIBILITY_LABELED
             setOnItemSelectedListener {
@@ -174,10 +183,10 @@ class MainActivity : AppCompatActivity() {
                 true
             }
         }
-        root.addView(bottomNav)
-        setContentView(root)
+        appRoot.addView(bottomNav)
+        setContentView(appRoot)
 
-        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(appRoot) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             toolbar.setPadding(toolbar.paddingLeft, bars.top, toolbar.paddingRight, toolbar.paddingBottom)
             bottomNav.setPadding(bottomNav.paddingLeft, bottomNav.paddingTop, bottomNav.paddingRight, bars.bottom)
@@ -212,6 +221,7 @@ class MainActivity : AppCompatActivity() {
                 renderHome()
             }
         }
+        animateContentIn()
     }
 
     private fun page() = LinearLayout(this).apply {
@@ -247,13 +257,13 @@ class MainActivity : AppCompatActivity() {
             }.getOrDefault(false)
         }
 
-        root.addView(heading(
+        appRoot.addView(heading(
             "Today’s desk",
             if (pending.isEmpty()) "No pending notices. Your desk is clear."
             else pending.size.toString() + " notices still need action."
         ), lp(bottom = 18))
 
-        root.addView(MaterialButton(this).apply {
+        appRoot.addView(MaterialButton(this).apply {
             text = "Scan court notice"
             setIconResource(R.drawable.ic_action_scan)
             iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
@@ -266,7 +276,7 @@ class MainActivity : AppCompatActivity() {
             }
         }, lp(bottom = 10))
 
-        root.addView(MaterialButton(
+        appRoot.addView(MaterialButton(
             this,
             null,
             com.google.android.material.R.attr.materialButtonOutlinedStyle
@@ -280,23 +290,23 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { showManualEntry() }
         }, lp(bottom = 22))
 
-        root.addView(LinearLayout(this).apply {
+        appRoot.addView(LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             addView(statBlock(pending.size.toString(), "Pending"), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
             addView(statBlock(upcoming.toString(), "Due ≤ 7d"), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
             addView(statBlock(unassigned.toString(), "Unassigned"), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }, lp(bottom = 26))
 
-        root.addView(sectionTitle("Needs attention"))
+        appRoot.addView(sectionTitle("Needs attention"))
         val attention = pending.sortedBy {
             runCatching { LocalDate.parse(it.nextHearing) }.getOrDefault(LocalDate.MAX)
         }.filter { it.processServer.isBlank() || it.nextHearing.isNotBlank() }.take(3)
 
         if (attention.isEmpty()) {
-            root.addView(emptyPanel("Nothing needs attention", "New or unassigned notices will appear here."), lp(bottom = 24))
+            appRoot.addView(emptyPanel("Nothing needs attention", "New or unassigned notices will appear here."), lp(bottom = 24))
         } else {
-            attention.forEach { root.addView(compactNoticeRow(it), lp(bottom = 10)) }
-            root.addView(TextView(this).apply {
+            attention.forEach { appRoot.addView(compactNoticeRow(it), lp(bottom = 10)) }
+            appRoot.addView(TextView(this).apply {
                 text = "View all notices"
                 textSize = 14f
                 setTypeface(typeface, Typeface.BOLD)
@@ -309,9 +319,9 @@ class MainActivity : AppCompatActivity() {
             })
         }
 
-        root.addView(sectionTitle("Recent scans"))
-        if (notices.isEmpty()) root.addView(emptyPanel("No notices yet", "Scan your first court notice to begin."))
-        else notices.take(4).forEach { root.addView(recentRow(it), lp(bottom = 8)) }
+        appRoot.addView(sectionTitle("Recent scans"))
+        if (notices.isEmpty()) appRoot.addView(emptyPanel("No notices yet", "Scan your first court notice to begin."))
+        else notices.take(4).forEach { appRoot.addView(recentRow(it), lp(bottom = 8)) }
 
         scroll.addView(root)
         content.addView(scroll)
@@ -418,7 +428,7 @@ class MainActivity : AppCompatActivity() {
         val pending = notices.filter { it.serviceStatus == "PENDING" }
         val completed = notices.filter { it.serviceStatus == "SERVED" || it.serviceStatus == "UNSERVED" }
 
-        root.addView(heading(
+        appRoot.addView(heading(
             when (trackerFilter) {
                 "COMPLETED" -> "Completed service"
                 "ALL" -> "All notices"
@@ -446,7 +456,7 @@ class MainActivity : AppCompatActivity() {
             "ALL" -> allButton.isChecked = true
             else -> pendingButton.isChecked = true
         }
-        root.addView(filters, lp(bottom = 18))
+        appRoot.addView(filters, lp(bottom = 18))
 
         val shown = when (trackerFilter) {
             "COMPLETED" -> completed
@@ -458,9 +468,9 @@ class MainActivity : AppCompatActivity() {
             val emptyTitle = if (trackerFilter == "COMPLETED") "No completed notices" else "Nothing here"
             val emptyCopy = if (trackerFilter == "PENDING") "Scanned notices stay here until you mark them served or unserved."
             else "Completed service will appear here."
-            root.addView(emptyPanel(emptyTitle, emptyCopy))
+            appRoot.addView(emptyPanel(emptyTitle, emptyCopy))
         } else {
-            shown.forEach { root.addView(noticeListRow(it), lp(bottom = 12)) }
+            shown.forEach { appRoot.addView(noticeListRow(it), lp(bottom = 12)) }
         }
 
         scroll.addView(root)
@@ -655,15 +665,15 @@ class MainActivity : AppCompatActivity() {
         val scroll = ScrollView(this).apply { isFillViewport = true }
         val root = page()
 
-        root.addView(heading("Desk setup", "Keep the app aligned with how your process desk actually works."), lp(bottom = 18))
+        appRoot.addView(heading("Desk setup", "Keep the app aligned with how your process desk actually works."), lp(bottom = 18))
 
-        root.addView(sectionTitle("Connection"))
-        root.addView(backendHealthPanel(), lp(bottom = 14))
-        root.addView(settingsRow(R.drawable.ic_ui_backend, "Backend", BackendConfig.url(this)) { showBackendDialog() })
+        appRoot.addView(sectionTitle("Connection"))
+        appRoot.addView(backendHealthPanel(), lp(bottom = 14))
+        appRoot.addView(settingsRow(R.drawable.ic_ui_backend, "Backend", BackendConfig.url(this)) { showBackendDialog() })
 
-        root.addView(sectionTitle("Workflow"), lp(top = 22))
-        root.addView(settingsRow(R.drawable.ic_ui_people, "Process servers", processServerSummary()) { showProcessServerSettings() })
-        root.addView(settingsRow(R.drawable.ic_ui_reminder, "Reminders", "10, 7, 3, 1 days and hearing morning") {
+        appRoot.addView(sectionTitle("Workflow"), lp(top = 22))
+        appRoot.addView(settingsRow(R.drawable.ic_ui_people, "Process servers", processServerSummary()) { showProcessServerSettings() })
+        appRoot.addView(settingsRow(R.drawable.ic_ui_reminder, "Reminders", "10, 7, 3, 1 days and hearing morning") {
             MaterialAlertDialogBuilder(this)
                 .setTitle("Reminders")
                 .setMessage("Only Pending notices are reminded. Served and Unserved notices are complete and stop future reminders.")
@@ -671,13 +681,13 @@ class MainActivity : AppCompatActivity() {
                 .show()
         })
 
-        root.addView(sectionTitle("Display & data"), lp(top = 22))
-        root.addView(settingsRow(R.drawable.ic_ui_fields, "Visible fields", "Choose what appears in notice details and exports") { showFieldsDialog() })
-        root.addView(settingsRow(R.drawable.ic_ui_appearance, "Appearance", themeSummary()) { showThemeDialog() })
-        root.addView(settingsRow(R.drawable.ic_ui_export, "Export", "CSV spreadsheet or JSON backup") { showExportDialog() })
+        appRoot.addView(sectionTitle("Display & data"), lp(top = 22))
+        appRoot.addView(settingsRow(R.drawable.ic_ui_fields, "Visible fields", "Choose what appears in notice details and exports") { showFieldsDialog() })
+        appRoot.addView(settingsRow(R.drawable.ic_ui_appearance, "Appearance", themeSummary()) { showThemeDialog() })
+        appRoot.addView(settingsRow(R.drawable.ic_ui_export, "Export", "CSV spreadsheet or JSON backup") { showExportDialog() })
 
-        root.addView(sectionTitle("About"), lp(top = 22))
-        root.addView(settingsRow(R.drawable.ic_ui_info, "Notice Tracker", "Debug build • Personal court-process utility") {
+        appRoot.addView(sectionTitle("About"), lp(top = 22))
+        appRoot.addView(settingsRow(R.drawable.ic_ui_info, "Notice Tracker", "Debug build • Personal court-process utility") {
             MaterialAlertDialogBuilder(this)
                 .setTitle("Notice Tracker")
                 .setMessage("Local-first notice tracking with eCourts case lookup. Default backend: " + BackendConfig.DEFAULT_URL)
