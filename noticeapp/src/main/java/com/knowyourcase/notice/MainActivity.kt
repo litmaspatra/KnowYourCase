@@ -17,6 +17,14 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.material.chip.ChipGroup
+import com.google.android.material.chip.Chip
+import com.google.android.material.button.MaterialButtonToggleGroup
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.appbar.MaterialToolbar
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
@@ -36,9 +44,11 @@ class MainActivity : AppCompatActivity() {
     private val db by lazy { NoticeDatabase.get(this) }
     private lateinit var content: FrameLayout
     private lateinit var bottomNav: BottomNavigationView
+    private lateinit var toolbar: MaterialToolbar
     private var notices: List<NoticeEntity> = emptyList()
     private var lookupNoticeId: Long = -1
     private var activeTab = TAB_HOME
+    private var trackerFilter = "PENDING"
     private val prefs by lazy { getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
 
     private var backendHealth = "UNKNOWN"
@@ -81,6 +91,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         applySavedTheme()
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         buildShell()
         requestNotificationPermission()
         lifecycleScope.launch {
@@ -133,14 +144,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildShell() {
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        content = FrameLayout(this)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
+        }
+
+        toolbar = MaterialToolbar(this).apply {
+            title = "Notice Tracker"
+            subtitle = "Court process desk"
+            setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
+            elevation = 0f
+        }
+        root.addView(toolbar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+
+        content = FrameLayout(this).apply {
+            setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
+        }
         root.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+
         bottomNav = BottomNavigationView(this).apply {
-            menu.add(0, TAB_HOME, 0, "Home").setIcon(R.drawable.ic_pixel_home)
-            menu.add(0, TAB_TRACK, 1, "Track").setIcon(R.drawable.ic_pixel_board)
+            menu.add(0, TAB_HOME, 0, "Desk").setIcon(R.drawable.ic_pixel_home)
+            menu.add(0, TAB_TRACK, 1, "Notices").setIcon(R.drawable.ic_pixel_board)
             menu.add(0, TAB_SETTINGS, 2, "Settings").setIcon(R.drawable.ic_pixel_settings)
             selectedItemId = TAB_HOME
+            labelVisibilityMode = BottomNavigationView.LABEL_VISIBILITY_LABELED
             setOnItemSelectedListener {
                 activeTab = it.itemId
                 renderCurrentTab()
@@ -149,6 +176,13 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(bottomNav)
         setContentView(root)
+
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            toolbar.setPadding(toolbar.paddingLeft, bars.top, toolbar.paddingRight, toolbar.paddingBottom)
+            bottomNav.setPadding(bottomNav.paddingLeft, bottomNav.paddingTop, bottomNav.paddingRight, bars.bottom)
+            insets
+        }
     }
 
     private fun reloadAndRender() {
