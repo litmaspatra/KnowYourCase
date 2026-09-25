@@ -43,5 +43,16 @@ object UiTokens {
         const val SLOW = 300L
     }
 
-    const val MIN_TOUCH = 48
+    object Size {
+        const val TOUCH = 48
+        const val PRIMARY_ACTION = 56
+        const val SCANNER_ACTION = 56
+        const val SCANNER_PHOTO = 64
+        const val META_LABEL = 96
+        const val PROGRESS = 40
+        const val HANDLE_WIDTH = 40
+        const val HANDLE_HEIGHT = 4
+    }
+
+    const val MIN_TOUCH = Size.TOUCH
 }
