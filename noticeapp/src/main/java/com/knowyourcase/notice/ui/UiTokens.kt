@@ -37,6 +37,11 @@ object UiTokens {
         const val EMPTY = 40
     }
 
+    object Stroke {
+        const val THIN = 1
+        const val FOCUSED = 2
+    }
+
     object Motion {
         const val FAST = 200L
         const val STANDARD = 250L
