@@ -57,6 +57,7 @@ object UiTokens {
         const val PROGRESS = 40
         const val HANDLE_WIDTH = 40
         const val HANDLE_HEIGHT = 4
+        const val TOOLBAR = 76
     }
 
     const val MIN_TOUCH = Size.TOUCH
