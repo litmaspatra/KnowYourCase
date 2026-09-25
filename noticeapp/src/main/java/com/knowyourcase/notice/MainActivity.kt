@@ -163,9 +163,9 @@ class MainActivity : AppCompatActivity() {
         root.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         bottomNav = BottomNavigationView(this).apply {
-            menu.add(0, TAB_HOME, 0, "Desk").setIcon(R.drawable.ic_pixel_home)
-            menu.add(0, TAB_TRACK, 1, "Notices").setIcon(R.drawable.ic_pixel_board)
-            menu.add(0, TAB_SETTINGS, 2, "Settings").setIcon(R.drawable.ic_pixel_settings)
+            menu.add(0, TAB_HOME, 0, "Desk").setIcon(R.drawable.ic_nav_desk)
+            menu.add(0, TAB_TRACK, 1, "Notices").setIcon(R.drawable.ic_nav_notices)
+            menu.add(0, TAB_SETTINGS, 2, "Settings").setIcon(R.drawable.ic_nav_settings)
             selectedItemId = TAB_HOME
             labelVisibilityMode = BottomNavigationView.LABEL_VISIBILITY_LABELED
             setOnItemSelectedListener {
