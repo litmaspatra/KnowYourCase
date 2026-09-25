@@ -1,0 +1,40 @@
+name: Install Impeccable Skill
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/install-impeccable.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    if: ${{ !contains(github.event.head_commit.message, 'Install Impeccable generated files') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Impeccable for GitHub Copilot
+        run: npx --yes impeccable install --providers=github --scope=project
+
+      - name: Commit generated skill files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Install Impeccable generated files"
+          git push
