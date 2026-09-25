@@ -14,6 +14,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AlertDialog
@@ -110,6 +111,16 @@ class MainActivity : AppCompatActivity() {
         } else {
             appRoot.post { showFirstRunIfNeeded() }
         }
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (activeTab != TAB_HOME) {
+                    navigateToDesk()
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { db.notices().recoverInterruptedFetches() }
             reloadAndRender()
@@ -211,24 +222,41 @@ class MainActivity : AppCompatActivity() {
     private fun renderCurrentTab() {
         if (!::content.isInitialized) return
         content.removeAllViews()
+        toolbar.setNavigationOnClickListener(null)
         when (activeTab) {
             TAB_TRACK -> {
+                toolbar.setNavigationIcon(R.drawable.ic_nt_back)
+                toolbar.navigationContentDescription = "Back to Desk"
+                toolbar.setNavigationOnClickListener { navigateToDesk() }
                 toolbar.title = "Notices"
                 toolbar.subtitle = "Pending work and completed service"
                 renderTracker()
             }
             TAB_SETTINGS -> {
+                toolbar.setNavigationIcon(R.drawable.ic_nt_back)
+                toolbar.navigationContentDescription = "Back to Desk"
+                toolbar.setNavigationOnClickListener { navigateToDesk() }
                 toolbar.title = "Settings"
                 toolbar.subtitle = "Desk preferences"
                 renderSettings()
             }
             else -> {
+                toolbar.navigationIcon = null
                 toolbar.title = "Notice Tracker"
                 toolbar.subtitle = "Court process desk"
                 renderHome()
             }
         }
         animateContentIn()
+    }
+
+    private fun navigateToDesk() {
+        activeTab = TAB_HOME
+        if (::bottomNav.isInitialized && bottomNav.selectedItemId != TAB_HOME) {
+            bottomNav.selectedItemId = TAB_HOME
+        } else {
+            renderCurrentTab()
+        }
     }
 
     private fun page() = LinearLayout(this).apply {
