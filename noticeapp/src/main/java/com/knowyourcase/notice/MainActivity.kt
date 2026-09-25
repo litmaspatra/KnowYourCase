@@ -1116,10 +1116,12 @@ class MainActivity : AppCompatActivity() {
         val layout = TextInputLayout(this).apply {
             this.hint = label
             boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
-            boxCornerRadiusTopStart = dp(16).toFloat()
-            boxCornerRadiusTopEnd = dp(16).toFloat()
-            boxCornerRadiusBottomStart = dp(16).toFloat()
-            boxCornerRadiusBottomEnd = dp(16).toFloat()
+            setBoxCornerRadii(
+                dp(16).toFloat(),
+                dp(16).toFloat(),
+                dp(16).toFloat(),
+                dp(16).toFloat()
+            )
             setPadding(dp(4), dp(8), dp(4), dp(2))
             addView(input)
         }
