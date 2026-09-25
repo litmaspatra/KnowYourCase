@@ -1706,24 +1706,17 @@ class MainActivity : AppCompatActivity() {
         loadingSnackbar?.dismiss()
         val bar = Snackbar.make(appRoot, message, Snackbar.LENGTH_INDEFINITE)
             .setAnchorView(bottomNav)
-        val layout = bar.view as? com.google.android.material.snackbar.Snackbar.SnackbarLayout
-        if (layout != null) {
-            val progress = com.google.android.material.progressindicator.CircularProgressIndicator(this).apply {
-                isIndeterminate = true
-                indicatorSize = dp(UiTokens.Icon.SUPPORT)
-                trackThickness = dp(UiTokens.Space.XXS)
-            }
-            layout.addView(progress, 0, FrameLayout.LayoutParams(
-                dp(UiTokens.Icon.SUPPORT),
-                dp(UiTokens.Icon.SUPPORT),
-                Gravity.CENTER_VERTICAL or Gravity.START
-            ).apply {
-                marginStart = dp(UiTokens.Space.SM)
-            })
-            layout.findViewById<TextView>(com.google.android.material.R.id.snackbar_text)?.apply {
-                setPadding(dp(UiTokens.Space.XL), paddingTop, paddingRight, paddingBottom)
-            }
+        val container = bar.view as ViewGroup
+        val progress = com.google.android.material.progressindicator.CircularProgressIndicator(this).apply {
+            isIndeterminate = true
+            indicatorSize = dp(UiTokens.Icon.SUPPORT)
+            trackThickness = dp(UiTokens.Space.XXS)
+            contentDescription = "Loading"
         }
+        container.addView(
+            progress,
+            ViewGroup.LayoutParams(dp(UiTokens.Icon.SUPPORT), dp(UiTokens.Icon.SUPPORT))
+        )
         bar.show()
         loadingSnackbar = bar
     }
