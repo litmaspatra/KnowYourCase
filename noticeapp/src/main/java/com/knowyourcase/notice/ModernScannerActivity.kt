@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.TextView
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.Camera
@@ -77,7 +78,7 @@ class ModernScannerActivity : AppCompatActivity() {
         )
     }
 
-    private val photoPicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    private val photoPicker: ActivityResultLauncher<String> = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null || finished) return@registerForActivityResult
         setPhotoLoading(true)
         runCatching { InputImage.fromFilePath(this, uri) }
@@ -90,21 +91,21 @@ class ModernScannerActivity : AppCompatActivity() {
                         } else {
                             setPhotoLoading(false)
                             showMessage("No QR code was found in that image.", "Choose another") {
-                                photoPicker.launch("image/*")
+                                launchPhotoPicker()
                             }
                         }
                     }
                     .addOnFailureListener {
                         setPhotoLoading(false)
                         showMessage("That image could not be read.", "Try again") {
-                            photoPicker.launch("image/*")
+                            launchPhotoPicker()
                         }
                     }
             }
             .onFailure {
                 setPhotoLoading(false)
                 showMessage("That image could not be opened.", "Choose another") {
-                    photoPicker.launch("image/*")
+                    launchPhotoPicker()
                 }
             }
     }
@@ -119,6 +120,10 @@ class ModernScannerActivity : AppCompatActivity() {
         } else {
             cameraPermission.launch(Manifest.permission.CAMERA)
         }
+    }
+
+    private fun launchPhotoPicker() {
+        if (!finished) photoPicker.launch("image/*")
     }
 
     private fun buildUi() {
@@ -194,7 +199,7 @@ class ModernScannerActivity : AppCompatActivity() {
         )
 
         photoButton = scannerActionButton(R.drawable.ic_nt_photo, "Scan QR from photo") {
-            photoPicker.launch("image/*")
+            launchPhotoPicker()
         }
         controls.addView(
             photoButton,
@@ -315,7 +320,7 @@ class ModernScannerActivity : AppCompatActivity() {
                 message,
                 R.drawable.ic_nt_error,
                 "Choose photo"
-            ) { photoPicker.launch("image/*") },
+            ) { launchPhotoPicker() },
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER).apply {
                 marginStart = dp(UiTokens.Space.LG)
                 marginEnd = dp(UiTokens.Space.LG)
