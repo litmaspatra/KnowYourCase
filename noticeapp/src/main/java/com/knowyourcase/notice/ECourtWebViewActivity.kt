@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -13,6 +14,7 @@ import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.*
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -436,12 +438,21 @@ class ECourtWebViewActivity : AppCompatActivity() {
     }
 
     private fun createBackgroundLookupView() {
+        // Keep the lookup activity visually invisible so the scanned notice remains
+        // on the desk while the WebView/CAPTCHA work happens in the background.
+        window.setDimAmount(0f)
+        window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+        window.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+
         rootView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
+            setBackgroundColor(Color.TRANSPARENT)
         }
 
         toolbar = MaterialToolbar(this).apply {
+            visibility = View.GONE
             title = "Fetching case details"
             subtitle = cnrNumber
             setNavigationIcon(R.drawable.ic_nt_close)
@@ -449,21 +460,22 @@ class ECourtWebViewActivity : AppCompatActivity() {
             setNavigationOnClickListener { finishWithError("Lookup cancelled") }
             setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
         }
-        rootView.addView(toolbar, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ))
+        rootView.addView(
+            toolbar,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        )
 
         stage = FrameLayout(this).apply {
-            setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
+            setBackgroundColor(Color.TRANSPARENT)
         }
-        rootView.addView(stage, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            0,
-            1f
-        ))
+        rootView.addView(
+            stage,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
+        )
 
+        // Hidden status container retained for manual-CAPTCHA fallback.
         val status = LinearLayout(this).apply {
+            visibility = View.GONE
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(
@@ -489,55 +501,31 @@ class ECourtWebViewActivity : AppCompatActivity() {
             gravity = Gravity.CENTER
         })
         status.addView(TextView(this).apply {
-            text = "The notice is already saved. Case details will fill in automatically."
+            text = "Automatic lookup could not finish. Complete the CAPTCHA below to continue."
             applyType(TextRole.BODY)
             setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
             gravity = Gravity.CENTER
             setPadding(0, dp(UiTokens.Space.XS), 0, dp(UiTokens.Space.LG))
         })
 
-        val skeleton = designCard().apply {
-            addView(LinearLayout(this@ECourtWebViewActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(
-                    dp(UiTokens.Space.MD),
-                    dp(UiTokens.Space.MD),
-                    dp(UiTokens.Space.MD),
-                    dp(UiTokens.Space.MD)
-                )
-                repeat(3) { index ->
-                    addView(View(this@ECourtWebViewActivity).apply {
-                        background = roundedSurface(
-                            com.google.android.material.R.attr.colorSurfaceVariant,
-                            UiTokens.Radius.SMALL
-                        )
-                    }, LinearLayout.LayoutParams(
-                        if (index == 1) dp(UiTokens.Size.META_LABEL * 2) else ViewGroup.LayoutParams.MATCH_PARENT,
-                        dp(UiTokens.Space.SM)
-                    ).apply {
-                        if (index > 0) topMargin = dp(UiTokens.Space.SM)
-                    })
-                }
-            })
-        }
-        status.addView(skeleton, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ))
-
         loadingView = status
-        stage.addView(status, FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ))
+        stage.addView(
+            status,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.TOP
+            }
+        )
 
         webView = WebView(this).apply {
             alpha = 0.01f
             visibility = View.VISIBLE
         }
-        stage.addView(webView, FrameLayout.LayoutParams(dp(UiTokens.Space.XXS), dp(UiTokens.Space.XXS)).apply {
-            gravity = Gravity.BOTTOM or Gravity.END
-        })
+        stage.addView(
+            webView,
+            FrameLayout.LayoutParams(dp(UiTokens.Space.XXS), dp(UiTokens.Space.XXS)).apply {
+                gravity = Gravity.BOTTOM or Gravity.END
+            }
+        )
 
         ViewCompat.setOnApplyWindowInsetsListener(rootView) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -555,9 +543,17 @@ class ECourtWebViewActivity : AppCompatActivity() {
         captchaProcessing = false
         submissionInFlight = false
 
-        loadingView.visibility = View.GONE
+        // Automatic background lookup failed. Only now promote this activity to a
+        // visible, interactive fallback so the user can solve the CAPTCHA manually.
+        window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+        window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+        rootView.setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
+        stage.setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
+        toolbar.visibility = View.VISIBLE
         toolbar.title = "Complete CAPTCHA"
-        toolbar.subtitle = "Automatic attempts were unsuccessful"
+        toolbar.subtitle = "Automatic lookup needs your help"
+        loadingView.visibility = View.GONE
+
         webView.alpha = 1f
         webView.layoutParams = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
