@@ -180,6 +180,10 @@ class MainActivity : AppCompatActivity() {
         toolbar = MaterialToolbar(this).apply {
             title = "Notice Tracker"
             subtitle = "Court process desk"
+            minimumHeight = dp(UiTokens.Size.TOOLBAR)
+            titleMarginBottom = dp(UiTokens.Space.XXS)
+            setTitleTextAppearance(this@MainActivity, com.google.android.material.R.style.TextAppearance_Material3_TitleLarge)
+            setSubtitleTextAppearance(this@MainActivity, com.google.android.material.R.style.TextAppearance_Material3_BodyLarge)
             setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
             elevation = 0f
         }
@@ -640,6 +644,23 @@ class MainActivity : AppCompatActivity() {
                     })
                 }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
                 addView(statusChip(n))
+                addView(ImageButton(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_nt_delete)
+                    setColorFilter(themeColor(com.google.android.material.R.attr.colorError))
+                    background = null
+                    contentDescription = "Delete notice"
+                    setPadding(
+                        dp(UiTokens.Space.XS),
+                        dp(UiTokens.Space.XS),
+                        dp(UiTokens.Space.XS),
+                        dp(UiTokens.Space.XS)
+                    )
+                    setOnClickListener {
+                        confirmDeleteNotice(n)
+                    }
+                }, LinearLayout.LayoutParams(dp(UiTokens.MIN_TOUCH), dp(UiTokens.MIN_TOUCH)).apply {
+                    marginStart = dp(UiTokens.Space.XXS)
+                })
             })
 
             addView(TextView(this@MainActivity).apply {
@@ -785,12 +806,8 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(sectionTitle("Workflow"), lp(top = UiTokens.Space.LG))
         root.addView(settingsRow(R.drawable.ic_nt_people, "Process servers", processServerSummary()) { showProcessServerSettings() }, lp(bottom = UiTokens.Space.XS))
-        root.addView(settingsRow(R.drawable.ic_nt_reminder, "Reminders", "10, 7, 3, 1 days and hearing morning") {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("Reminders")
-                .setMessage("Only Pending notices are reminded. Served and Unserved notices are complete and stop future reminders.")
-                .setPositiveButton("Done", null)
-                .show()
+        root.addView(settingsRow(R.drawable.ic_nt_reminder, "Reminders", reminderSummary()) {
+            showReminderSettings()
         })
 
         root.addView(sectionTitle("Display & data"), lp(top = UiTokens.Space.LG))
@@ -1272,6 +1289,76 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun confirmDeleteNotice(n: NoticeEntity) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Delete notice?")
+            .setMessage("This removes the notice entry from this device. This cannot be undone.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Delete") { _, _ -> deleteNotice(n) }
+            .show()
+    }
+
+    private fun deleteNotice(n: NoticeEntity) {
+        lifecycleScope.launch {
+            ReminderWorker.cancel(this@MainActivity, n.id)
+            withContext(Dispatchers.IO) { db.notices().delete(n) }
+            reloadAndRender()
+            notifyUser("Notice deleted")
+        }
+    }
+
+    private fun reminderDays(): List<Int> =
+        prefs.getString(KEY_REMINDER_DAYS, null)
+            ?.split(",")
+            ?.mapNotNull { it.trim().toIntOrNull() }
+            ?.filter { it >= 0 }
+            ?.distinct()
+            ?.sortedDescending()
+            ?.takeIf { it.isNotEmpty() }
+            ?: listOf(10, 7, 3, 1, 0)
+
+    private fun reminderSummary(): String {
+        val days = reminderDays()
+        val before = days.filter { it > 0 }
+        val parts = mutableListOf<String>()
+        if (before.isNotEmpty()) parts += before.joinToString(", ") + " days before"
+        if (0 in days) parts += "hearing morning"
+        return parts.joinToString(" • ").ifBlank { "No reminders configured" }
+    }
+
+    private fun showReminderSettings() {
+        val options = intArrayOf(14, 10, 7, 5, 3, 2, 1, 0)
+        val labels = options.map { if (it == 0) "Hearing morning" else "$it days before" }.toTypedArray()
+        val selected = reminderDays().toSet()
+        val checked = BooleanArray(options.size) { options[it] in selected }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Reminder schedule")
+            .setMultiChoiceItems(labels, checked) { _, which, value -> checked[which] = value }
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Save") { _, _ ->
+                val values = options.filterIndexed { index, _ -> checked[index] }
+                val saved = if (values.isEmpty()) listOf(10, 7, 3, 1, 0) else values
+                prefs.edit().putString(KEY_REMINDER_DAYS, saved.joinToString(",")).apply()
+                lifecycleScope.launch {
+                    val current = withContext(Dispatchers.IO) { db.notices().all() }
+                    current.forEach { ReminderWorker.reschedule(this@MainActivity, it) }
+                    if (activeTab == TAB_SETTINGS) renderCurrentTab()
+                    notifyUser("Reminder schedule updated")
+                }
+            }
+            .setNeutralButton("Default") { _, _ ->
+                prefs.edit().remove(KEY_REMINDER_DAYS).apply()
+                lifecycleScope.launch {
+                    val current = withContext(Dispatchers.IO) { db.notices().all() }
+                    current.forEach { ReminderWorker.reschedule(this@MainActivity, it) }
+                    if (activeTab == TAB_SETTINGS) renderCurrentTab()
+                    notifyUser("Default reminders restored")
+                }
+            }
+            .show()
+    }
+
     private fun showBackendDialog() {
         val field = modernTextField(
             label = "Backend URL",
@@ -1561,7 +1648,6 @@ class MainActivity : AppCompatActivity() {
                         servers.add(name)
                         saveProcessServers(servers)
                         addDialog.dismiss()
-                        notifyUser("Process server added")
                         renderList()
                     }
                 }
@@ -1577,7 +1663,6 @@ class MainActivity : AppCompatActivity() {
                 .setPositiveButton("Remove") { _, _ ->
                     servers.removeAt(index)
                     saveProcessServers(servers)
-                    notifyUser("Process server removed")
                     renderList()
                 }
                 .show()
@@ -1880,6 +1965,7 @@ class MainActivity : AppCompatActivity() {
         private const val PREFS = "notice_tracker_settings"
         private const val KEY_THEME = "theme"
         private const val KEY_PROCESS_SERVERS = "process_servers"
+        private const val KEY_REMINDER_DAYS = "reminder_days"
         private const val KEY_ONBOARDED = "onboarded_v1"
         private val FIELD_KEYS = listOf(
             "cnr" to "CNR",
