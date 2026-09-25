@@ -13,7 +13,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageButton
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,7 +25,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.google.android.material.button.MaterialButton
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -41,7 +39,9 @@ class ModernScannerActivity : AppCompatActivity() {
     }
 
     private lateinit var previewView: PreviewView
-    private lateinit var torchButton: MaterialButton
+    private lateinit var torchButton: ImageButton
+    private var cameraProvider: ProcessCameraProvider? = null
+    private var imageAnalysis: ImageAnalysis? = null
     private var camera: Camera? = null
     private var torchOn = false
     private var finished = false
@@ -62,11 +62,8 @@ class ModernScannerActivity : AppCompatActivity() {
                 scanner.process(image)
                     .addOnSuccessListener { barcodes ->
                         val value = barcodes.firstOrNull { !it.rawValue.isNullOrBlank() }?.rawValue
-                        if (!value.isNullOrBlank()) {
-                            finishWithResult(value)
-                        } else {
-                            Toast.makeText(this, "No QR code found in that image.", Toast.LENGTH_LONG).show()
-                        }
+                        if (!value.isNullOrBlank()) finishWithResult(value)
+                        else Toast.makeText(this, "No QR code found in that image.", Toast.LENGTH_LONG).show()
                     }
                     .addOnFailureListener {
                         Toast.makeText(this, "Could not read that image.", Toast.LENGTH_LONG).show()
@@ -106,67 +103,39 @@ class ModernScannerActivity : AppCompatActivity() {
 
         val close = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-            setBackgroundColor(Color.TRANSPARENT)
+            background = ContextCompat.getDrawable(this@ModernScannerActivity, R.drawable.bg_scanner_action)
             setColorFilter(Color.WHITE)
             contentDescription = "Close scanner"
+            setPadding(dp(16), dp(16), dp(16), dp(16))
             setOnClickListener { finish() }
         }
         root.addView(close, FrameLayout.LayoutParams(dp(52), dp(52), Gravity.TOP or Gravity.START).apply {
             topMargin = dp(18)
-            marginStart = dp(12)
+            marginStart = dp(14)
         })
 
-        val topActions = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        torchButton = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = "Flash"
-            isAllCaps = false
-            setTextColor(Color.WHITE)
-            strokeColor = android.content.res.ColorStateList.valueOf(0x99FFFFFF.toInt())
-            setBackgroundColor(Color.TRANSPARENT)
-            minHeight = dp(44)
+        torchButton = ImageButton(this).apply {
+            setImageResource(R.drawable.ic_scanner_flash)
+            background = ContextCompat.getDrawable(this@ModernScannerActivity, R.drawable.bg_scanner_action)
+            contentDescription = "Toggle flashlight"
+            setPadding(dp(15), dp(15), dp(15), dp(15))
             setOnClickListener {
                 torchOn = !torchOn
                 camera?.cameraControl?.enableTorch(torchOn)
-                text = if (torchOn) "Flash On" else "Flash"
+                alpha = if (torchOn) 1f else .72f
             }
         }
-
-        val photoButton = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = "Photo"
-            isAllCaps = false
-            setTextColor(Color.WHITE)
-            strokeColor = android.content.res.ColorStateList.valueOf(0x99FFFFFF.toInt())
-            setBackgroundColor(Color.TRANSPARENT)
-            minHeight = dp(44)
-            setOnClickListener { photoPicker.launch("image/*") }
-        }
-
-        topActions.addView(torchButton, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { marginEnd = dp(8) })
-        topActions.addView(photoButton, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ))
-
-        root.addView(topActions, FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            Gravity.TOP or Gravity.END
-        ).apply {
-            topMargin = dp(20)
+        root.addView(torchButton, FrameLayout.LayoutParams(dp(52), dp(52), Gravity.TOP or Gravity.END).apply {
+            topMargin = dp(18)
             marginEnd = dp(14)
         })
 
         val hint = TextView(this).apply {
-            text = "Align the eCourts QR code inside the frame\nOr choose Photo to scan an existing image"
+            text = "Align the eCourts QR code inside the frame"
             setTextColor(Color.WHITE)
             textSize = 15f
             gravity = Gravity.CENTER
-            setPadding(dp(22), dp(12), dp(22), dp(12))
+            setPadding(dp(18), dp(10), dp(18), dp(10))
             setBackgroundColor(0x66000000)
         }
         root.addView(hint, FrameLayout.LayoutParams(
@@ -174,9 +143,20 @@ class ModernScannerActivity : AppCompatActivity() {
             ViewGroup.LayoutParams.WRAP_CONTENT,
             Gravity.BOTTOM
         ).apply {
-            leftMargin = dp(24)
-            rightMargin = dp(24)
-            bottomMargin = dp(48)
+            leftMargin = dp(30)
+            rightMargin = dp(30)
+            bottomMargin = dp(118)
+        })
+
+        val photoButton = ImageButton(this).apply {
+            setImageResource(R.drawable.ic_scanner_photo)
+            background = ContextCompat.getDrawable(this@ModernScannerActivity, R.drawable.bg_scanner_action)
+            contentDescription = "Scan QR from photo"
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+            setOnClickListener { photoPicker.launch("image/*") }
+        }
+        root.addView(photoButton, FrameLayout.LayoutParams(dp(58), dp(58), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+            bottomMargin = dp(42)
         })
 
         setContentView(root)
@@ -186,6 +166,8 @@ class ModernScannerActivity : AppCompatActivity() {
         val providerFuture = ProcessCameraProvider.getInstance(this)
         providerFuture.addListener({
             val provider = providerFuture.get()
+            cameraProvider = provider
+
             val preview = Preview.Builder()
                 .setTargetRotation(previewView.display.rotation)
                 .build()
@@ -195,6 +177,7 @@ class ModernScannerActivity : AppCompatActivity() {
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setTargetRotation(previewView.display.rotation)
                 .build()
+            imageAnalysis = analysis
 
             analysis.setAnalyzer(cameraExecutor) { imageProxy ->
                 if (finished) {
@@ -224,8 +207,9 @@ class ModernScannerActivity : AppCompatActivity() {
                     analysis
                 )
                 torchButton.isEnabled = camera?.cameraInfo?.hasFlashUnit() == true
+                torchButton.alpha = if (torchButton.isEnabled) .72f else .3f
             } catch (_: Exception) {
-                Toast.makeText(this, "Camera could not start. You can still scan from Photo.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Camera could not start. Use the photo button below.", Toast.LENGTH_LONG).show()
             }
         }, ContextCompat.getMainExecutor(this))
     }
@@ -233,8 +217,17 @@ class ModernScannerActivity : AppCompatActivity() {
     private fun finishWithResult(value: String) {
         if (finished) return
         finished = true
-        setResult(RESULT_OK, Intent().putExtra(EXTRA_SCAN_RESULT, value))
-        finish()
+
+        imageAnalysis?.clearAnalyzer()
+        camera?.cameraControl?.enableTorch(false)
+        cameraProvider?.unbindAll()
+        previewView.surfaceProvider = null
+
+        runOnUiThread {
+            setResult(RESULT_OK, Intent().putExtra(EXTRA_SCAN_RESULT, value))
+            finish()
+            overridePendingTransition(0, 0)
+        }
     }
 
     override fun onRequestPermissionsResult(
@@ -250,13 +243,15 @@ class ModernScannerActivity : AppCompatActivity() {
         } else {
             Toast.makeText(
                 this,
-                "Camera permission denied. Use Photo to scan a saved QR image.",
+                "Camera permission denied. Use the photo button below.",
                 Toast.LENGTH_LONG
             ).show()
         }
     }
 
     override fun onDestroy() {
+        imageAnalysis?.clearAnalyzer()
+        cameraProvider?.unbindAll()
         scanner.close()
         cameraExecutor.shutdown()
         super.onDestroy()
@@ -269,11 +264,10 @@ class ModernScannerActivity : AppCompatActivity() {
         private val frame = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
             style = Paint.Style.STROKE
-            strokeWidth = context.resources.displayMetrics.density * 3f
-            strokeCap = Paint.Cap.SQUARE
+            strokeWidth = context.resources.displayMetrics.density * 2f
         }
         private val accent = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = 0xFF4FA3FF.toInt()
+            color = 0xFF5CB7FF.toInt()
             style = Paint.Style.STROKE
             strokeWidth = context.resources.displayMetrics.density * 4f
             strokeCap = Paint.Cap.SQUARE
@@ -281,17 +275,16 @@ class ModernScannerActivity : AppCompatActivity() {
 
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
-            val size = width * 0.72f
+            val size = width * 0.74f
             val left = (width - size) / 2f
-            val top = height * 0.28f
+            val top = height * 0.25f
             val rect = RectF(left, top, left + size, top + size)
 
             canvas.drawRect(0f, 0f, width.toFloat(), rect.top, shade)
             canvas.drawRect(0f, rect.bottom, width.toFloat(), height.toFloat(), shade)
             canvas.drawRect(0f, rect.top, rect.left, rect.bottom, shade)
             canvas.drawRect(rect.right, rect.top, width.toFloat(), rect.bottom, shade)
-
-            canvas.drawRoundRect(rect, 22f, 22f, frame)
+            canvas.drawRoundRect(rect, 26f, 26f, frame)
 
             val c = size * .13f
             canvas.drawLine(rect.left, rect.top + c, rect.left, rect.top, accent)
