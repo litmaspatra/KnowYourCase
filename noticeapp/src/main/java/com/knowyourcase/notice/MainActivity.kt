@@ -1073,11 +1073,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(14), dp(4), dp(14), dp(4))
             if (value.isNotBlank()) setSelection(text?.length ?: 0)
         }
-        val layout = TextInputLayout(
-            this,
-            null,
-            com.google.android.material.R.attr.textInputOutlinedStyle
-        ).apply {
+        val layout = TextInputLayout(this).apply {
             this.hint = label
             boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
             boxCornerRadiusTopStart = dp(16).toFloat()
