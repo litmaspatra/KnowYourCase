@@ -601,10 +601,10 @@ class MainActivity : AppCompatActivity() {
         isCheckable = true
         isAllCaps = false
         minWidth = 0
-        textSize = 13f
+        applyType(TextRole.CAPTION, true)
         maxLines = 1
         ellipsize = null
-        setPadding(dp(2), 0, dp(2), 0)
+        setPadding(0, 0, 0, 0)
     }
 
     private fun noticeListRow(n: NoticeEntity) = designCard().apply {
@@ -1686,7 +1686,7 @@ class MainActivity : AppCompatActivity() {
             setText(value)
             inputType = inputTypeValue
             applyType(TextRole.BODY)
-            minHeight = dp(56)
+            minHeight = dp(UiTokens.Size.PRIMARY_ACTION)
             setPadding(dp(UiTokens.Space.SM), 0, dp(UiTokens.Space.SM), 0)
             if (value.isNotBlank()) setSelection(text?.length ?: 0)
         }
@@ -1694,8 +1694,8 @@ class MainActivity : AppCompatActivity() {
             this.hint = label
             placeholderText = hint
             boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
-            boxStrokeWidth = dp(1)
-            boxStrokeWidthFocused = dp(2)
+            boxStrokeWidth = dp(UiTokens.Stroke.THIN)
+            boxStrokeWidthFocused = dp(UiTokens.Stroke.FOCUSED)
             setBoxCornerRadii(
                 dp(UiTokens.Radius.MEDIUM).toFloat(),
                 dp(UiTokens.Radius.MEDIUM).toFloat(),
