@@ -15,11 +15,19 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.*
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.google.gson.Gson
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.progressindicator.CircularProgressIndicator
+import com.google.android.material.snackbar.Snackbar
+import com.knowyourcase.notice.ui.*
 import com.knowyourcase.notice.data.api.ParseRequest
 import com.knowyourcase.notice.data.api.RetrofitClient
 import kotlinx.coroutines.CoroutineScope
@@ -60,6 +68,9 @@ class ECourtWebViewActivity : AppCompatActivity() {
             }
     }
 
+    private lateinit var rootView: LinearLayout
+    private lateinit var stage: FrameLayout
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var webView: WebView
     private lateinit var loadingView: View
     private lateinit var captchaSolver: CaptchaSolver
@@ -80,6 +91,7 @@ class ECourtWebViewActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         cnrNumber = intent.getStringExtra(EXTRA_CNR) ?: run {
             finishWithError("No CNR provided"); return
@@ -424,43 +436,97 @@ class ECourtWebViewActivity : AppCompatActivity() {
     }
 
     private fun createBackgroundLookupView() {
-        val root = FrameLayout(this).apply {
-            setBackgroundColor(android.graphics.Color.rgb(247, 249, 252))
+        rootView = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
         }
+
+        toolbar = MaterialToolbar(this).apply {
+            title = "Fetching case details"
+            subtitle = cnrNumber
+            setNavigationIcon(R.drawable.ic_nt_close)
+            navigationContentDescription = "Cancel case lookup"
+            setNavigationOnClickListener { finishWithError("Lookup cancelled") }
+            setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
+        }
+        rootView.addView(toolbar, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+
+        stage = FrameLayout(this).apply {
+            setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
+        }
+        rootView.addView(stage, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        ))
 
         val status = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(48, 48, 48, 48)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(
+                dp(UiTokens.Space.LG),
+                dp(UiTokens.Space.XL),
+                dp(UiTokens.Space.LG),
+                dp(UiTokens.Space.LG)
+            )
         }
 
-        status.addView(ProgressBar(this), LinearLayout.LayoutParams(64, 64).apply {
+        status.addView(CircularProgressIndicator(this).apply {
+            isIndeterminate = true
+            indicatorSize = dp(UiTokens.Size.PROGRESS)
+            trackThickness = dp(UiTokens.Space.XXS)
+        }, LinearLayout.LayoutParams(dp(UiTokens.Size.PROGRESS), dp(UiTokens.Size.PROGRESS)).apply {
             gravity = Gravity.CENTER_HORIZONTAL
-        })
-        status.addView(TextView(this).apply {
-            text = "Fetching case details…"
-            textSize = 20f
-            setTextColor(android.graphics.Color.rgb(28, 39, 52))
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            gravity = Gravity.CENTER
-            setPadding(0, 28, 0, 8)
-        })
-        status.addView(TextView(this).apply {
-            text = cnrNumber
-            textSize = 14f
-            setTextColor(android.graphics.Color.rgb(90, 103, 118))
-            gravity = Gravity.CENTER
-        })
-        status.addView(TextView(this).apply {
-            text = "Checking eCourts securely. This usually takes only a moment."
-            textSize = 13f
-            setTextColor(android.graphics.Color.rgb(110, 122, 135))
-            gravity = Gravity.CENTER
-            setPadding(24, 18, 24, 0)
+            bottomMargin = dp(UiTokens.Space.LG)
         })
 
+        status.addView(TextView(this).apply {
+            text = "Checking eCourts"
+            applyType(TextRole.TITLE, true)
+            gravity = Gravity.CENTER
+        })
+        status.addView(TextView(this).apply {
+            text = "The notice is already saved. Case details will fill in automatically."
+            applyType(TextRole.BODY)
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+            gravity = Gravity.CENTER
+            setPadding(0, dp(UiTokens.Space.XS), 0, dp(UiTokens.Space.LG))
+        })
+
+        val skeleton = designCard().apply {
+            addView(LinearLayout(this@ECourtWebViewActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(
+                    dp(UiTokens.Space.MD),
+                    dp(UiTokens.Space.MD),
+                    dp(UiTokens.Space.MD),
+                    dp(UiTokens.Space.MD)
+                )
+                repeat(3) { index ->
+                    addView(View(this@ECourtWebViewActivity).apply {
+                        background = roundedSurface(
+                            com.google.android.material.R.attr.colorSurfaceVariant,
+                            UiTokens.Radius.SMALL
+                        )
+                    }, LinearLayout.LayoutParams(
+                        if (index == 1) dp(UiTokens.Size.META_LABEL * 2) else ViewGroup.LayoutParams.MATCH_PARENT,
+                        dp(UiTokens.Space.SM)
+                    ).apply {
+                        if (index > 0) topMargin = dp(UiTokens.Space.SM)
+                    })
+                }
+            })
+        }
+        status.addView(skeleton, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+
         loadingView = status
-        root.addView(status, FrameLayout.LayoutParams(
+        stage.addView(status, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ))
@@ -469,10 +535,18 @@ class ECourtWebViewActivity : AppCompatActivity() {
             alpha = 0.01f
             visibility = View.VISIBLE
         }
-        root.addView(webView, FrameLayout.LayoutParams(2, 2).apply {
+        stage.addView(webView, FrameLayout.LayoutParams(dp(UiTokens.Space.XXS), dp(UiTokens.Space.XXS)).apply {
             gravity = Gravity.BOTTOM or Gravity.END
         })
-        setContentView(root)
+
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            toolbar.setPadding(toolbar.paddingLeft, bars.top, toolbar.paddingRight, toolbar.paddingBottom)
+            rootView.setPadding(0, 0, 0, bars.bottom)
+            insets
+        }
+
+        setContentView(rootView)
     }
 
     private fun enterManualCaptchaMode() {
@@ -480,19 +554,22 @@ class ECourtWebViewActivity : AppCompatActivity() {
         manualCaptchaMode = true
         captchaProcessing = false
         submissionInFlight = false
+
         loadingView.visibility = View.GONE
+        toolbar.title = "Complete CAPTCHA"
+        toolbar.subtitle = "Automatic attempts were unsuccessful"
         webView.alpha = 1f
         webView.layoutParams = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         )
-        android.widget.Toast.makeText(
-            this,
-            "Automatic CAPTCHA attempts failed. Please enter the CAPTCHA and tap Search.",
-            android.widget.Toast.LENGTH_LONG
-        ).show()
 
-        // Keep observing so a successful manual submission still returns data.
+        Snackbar.make(
+            rootView,
+            "Enter the CAPTCHA shown by eCourts, then tap Search.",
+            Snackbar.LENGTH_INDEFINITE
+        ).setAction("Cancel") { finishWithError("Lookup cancelled") }.show()
+
         Handler(Looper.getMainLooper()).postDelayed({ inspectPage() }, 1500)
     }
 
