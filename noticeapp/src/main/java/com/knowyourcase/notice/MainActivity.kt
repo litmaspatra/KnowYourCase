@@ -20,6 +20,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.chip.Chip
 import com.google.android.material.button.MaterialButtonToggleGroup
@@ -28,6 +29,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -102,6 +104,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         buildShell()
+        updateSystemBars()
         requestNotificationPermission()
         appRoot.post { showFirstRunIfNeeded() }
         lifecycleScope.launch {
@@ -1559,33 +1562,6 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun roundedSurface(attr: Int, radiusDp: Int): android.graphics.drawable.Drawable =
-        android.graphics.drawable.GradientDrawable().apply {
-            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-            cornerRadius = dp(radiusDp).toFloat()
-            setColor(themeColor(attr))
-        }
-
-    private fun emptyPanel(title: String, supporting: String) = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER
-        setPadding(dp(18), dp(26), dp(18), dp(26))
-        background = roundedSurface(com.google.android.material.R.attr.colorSurfaceVariant, 18)
-        addView(TextView(this@MainActivity).apply {
-            text = title
-            textSize = 16f
-            setTypeface(typeface, Typeface.BOLD)
-            gravity = Gravity.CENTER
-        })
-        addView(TextView(this@MainActivity).apply {
-            text = supporting
-            textSize = 13f
-            alpha = .62f
-            gravity = Gravity.CENTER
-            setPadding(dp(8), dp(5), dp(8), 0)
-        })
-    }
-
     private fun modernTextField(
         label: String,
         value: String,
@@ -1596,70 +1572,30 @@ class MainActivity : AppCompatActivity() {
             setText(value)
             this.hint = hint
             inputType = inputTypeValue
-            textSize = 16f
-            setPadding(dp(14), dp(4), dp(14), dp(4))
+            applyType(TextRole.BODY)
+            minHeight = dp(UiTokens.MIN_TOUCH)
             if (value.isNotBlank()) setSelection(text?.length ?: 0)
         }
         val layout = TextInputLayout(this).apply {
             this.hint = label
             boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
             setBoxCornerRadii(
-                dp(16).toFloat(),
-                dp(16).toFloat(),
-                dp(16).toFloat(),
-                dp(16).toFloat()
+                dp(UiTokens.Radius.MEDIUM).toFloat(),
+                dp(UiTokens.Radius.MEDIUM).toFloat(),
+                dp(UiTokens.Radius.MEDIUM).toFloat(),
+                dp(UiTokens.Radius.MEDIUM).toFloat()
             )
-            setPadding(dp(4), dp(8), dp(4), dp(2))
+            setPadding(0, dp(UiTokens.Space.XS), 0, 0)
             addView(input)
         }
         return layout to input
     }
 
-    private fun card() = MaterialCardView(this).apply {
-        radius = dp(20).toFloat()
-        cardElevation = dp(2).toFloat()
-        strokeWidth = dp(1)
-        setCardBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
-        strokeColor = themeColor(com.google.android.material.R.attr.colorOutlineVariant)
-    }
-
-    private fun primaryButton(label: String, click: () -> Unit) = MaterialButton(this).apply {
-        text = label
-        textSize = 15f
-        isAllCaps = false
-        isSingleLine = true
-        maxLines = 1
-        minHeight = dp(52)
-        setOnClickListener { click() }
-    }
-
-    private fun outlineButton(label: String, click: () -> Unit) =
-        MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = label
-            textSize = 14f
-            isAllCaps = false
-            isSingleLine = true
-            maxLines = 1
-            minHeight = dp(50)
-            setOnClickListener { click() }
-        }
-
-    private fun sectionTitle(value: String) = TextView(this).apply {
-        text = value
-        textSize = 16f
-        setTypeface(typeface, Typeface.BOLD)
-        setPadding(0, 0, 0, dp(9))
-    }
-
-    private fun emptyState(value: String) = TextView(this).apply {
-        text = value
-        gravity = Gravity.CENTER
-        alpha = .55f
-        setPadding(dp(12), dp(30), dp(12), dp(30))
-    }
-
     private fun lp(top: Int = 0, bottom: Int = 0) =
-        LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+        LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
             topMargin = dp(top)
             bottomMargin = dp(bottom)
         }
@@ -1671,13 +1607,158 @@ class MainActivity : AppCompatActivity() {
         return c
     }
 
+    private fun notifyUser(message: String) {
+        if (!::appRoot.isInitialized) return
+        Snackbar.make(appRoot, message, Snackbar.LENGTH_SHORT)
+            .setAnchorView(bottomNav)
+            .show()
+    }
+
+    private fun showLoadingFeedback(message: String) {
+        if (!::appRoot.isInitialized) return
+        loadingSnackbar?.dismiss()
+        val bar = Snackbar.make(appRoot, message, Snackbar.LENGTH_INDEFINITE)
+            .setAnchorView(bottomNav)
+        val layout = bar.view as? com.google.android.material.snackbar.Snackbar.SnackbarLayout
+        if (layout != null) {
+            val progress = com.google.android.material.progressindicator.CircularProgressIndicator(this).apply {
+                isIndeterminate = true
+                indicatorSize = dp(UiTokens.Icon.SUPPORT)
+                trackThickness = dp(UiTokens.Space.XXS)
+            }
+            layout.addView(progress, 0, FrameLayout.LayoutParams(
+                dp(UiTokens.Icon.SUPPORT),
+                dp(UiTokens.Icon.SUPPORT),
+                Gravity.CENTER_VERTICAL or Gravity.START
+            ).apply {
+                marginStart = dp(UiTokens.Space.SM)
+            })
+            layout.findViewById<TextView>(com.google.android.material.R.id.snackbar_text)?.apply {
+                setPadding(dp(UiTokens.Space.XL), paddingTop, paddingRight, paddingBottom)
+            }
+        }
+        bar.show()
+        loadingSnackbar = bar
+    }
+
+    private fun animateContentIn() {
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            content.alpha = 1f
+            return
+        }
+        content.animate().cancel()
+        content.alpha = 0f
+        content.animate()
+            .alpha(1f)
+            .setDuration(UiTokens.Motion.FAST)
+            .start()
+    }
+
+    private fun updateSystemBars() {
+        val surface = themeColor(com.google.android.material.R.attr.colorSurface)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = surface
+        val light = ColorUtils.calculateLuminance(surface) > 0.5
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = light
+            isAppearanceLightNavigationBars = light
+        }
+    }
+
+    private fun showFirstRunIfNeeded() {
+        if (prefs.getBoolean(KEY_ONBOARDED, false) || isFinishing || isDestroyed) return
+
+        val sheet = BottomSheetDialog(this)
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(
+                dp(UiTokens.Space.LG),
+                dp(UiTokens.Space.LG),
+                dp(UiTokens.Space.LG),
+                dp(UiTokens.Space.LG)
+            )
+        }
+
+        body.addView(ImageView(this).apply {
+            setImageResource(R.drawable.ic_nt_notices)
+            setColorFilter(themeColor(com.google.android.material.R.attr.colorPrimary))
+            contentDescription = null
+        }, LinearLayout.LayoutParams(dp(UiTokens.Icon.EMPTY), dp(UiTokens.Icon.EMPTY)).apply {
+            bottomMargin = dp(UiTokens.Space.MD)
+        })
+
+        body.addView(TextView(this).apply {
+            text = "Your notice desk, in three steps"
+            applyType(TextRole.HEADLINE, true)
+        })
+        body.addView(TextView(this).apply {
+            text = "Scan the notice, assign a process server, then close the work as Served or Unserved."
+            applyType(TextRole.BODY)
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+            setPadding(0, dp(UiTokens.Space.XS), 0, dp(UiTokens.Space.LG))
+        })
+
+        fun step(number: String, title: String, copy: String) {
+            body.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.TOP
+                setPadding(0, dp(UiTokens.Space.XS), 0, dp(UiTokens.Space.XS))
+                addView(TextView(this@MainActivity).apply {
+                    text = number
+                    applyType(TextRole.LABEL, true)
+                    gravity = Gravity.CENTER
+                    background = roundedSurface(
+                        com.google.android.material.R.attr.colorPrimaryContainer,
+                        UiTokens.Radius.PILL
+                    )
+                    setTextColor(themeColor(com.google.android.material.R.attr.colorOnPrimaryContainer))
+                }, LinearLayout.LayoutParams(dp(UiTokens.MIN_TOUCH), dp(UiTokens.MIN_TOUCH)).apply {
+                    marginEnd = dp(UiTokens.Space.SM)
+                })
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(TextView(this@MainActivity).apply {
+                        text = title
+                        applyType(TextRole.BODY, true)
+                    })
+                    addView(TextView(this@MainActivity).apply {
+                        text = copy
+                        applyType(TextRole.LABEL)
+                        setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                        setPadding(0, dp(UiTokens.Space.XXS), 0, 0)
+                    })
+                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            })
+        }
+
+        step("1", "Scan", "Read the eCourts QR code or enter the CNR manually.")
+        step("2", "Assign", "Choose the process server responsible for service.")
+        step("3", "Complete", "Served and Unserved both complete the notice; Pending means no action yet.")
+
+        body.addView(primaryButton("Scan first notice", R.drawable.ic_nt_scan) {
+            prefs.edit().putBoolean(KEY_ONBOARDED, true).apply()
+            sheet.dismiss()
+            scanner.launch(android.content.Intent(this, ModernScannerActivity::class.java))
+        }, lp(top = UiTokens.Space.LG))
+
+        body.addView(outlineButton("Not now") {
+            prefs.edit().putBoolean(KEY_ONBOARDED, true).apply()
+            sheet.dismiss()
+        }, lp(top = UiTokens.Space.XS))
+
+        sheet.setContentView(body)
+        sheet.setOnDismissListener {
+            prefs.edit().putBoolean(KEY_ONBOARDED, true).apply()
+        }
+        sheet.show()
+    }
+
     private fun requestNotificationPermission() {
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
             ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 20)
     }
 
-    private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
     companion object {
@@ -1687,6 +1768,7 @@ class MainActivity : AppCompatActivity() {
         private const val PREFS = "notice_tracker_settings"
         private const val KEY_THEME = "theme"
         private const val KEY_PROCESS_SERVERS = "process_servers"
+        private const val KEY_ONBOARDED = "onboarded_v1"
         private val FIELD_KEYS = listOf(
             "cnr" to "CNR",
             "court" to "Court",
