@@ -221,7 +221,6 @@ class ModernScannerActivity : AppCompatActivity() {
         imageAnalysis?.clearAnalyzer()
         camera?.cameraControl?.enableTorch(false)
         cameraProvider?.unbindAll()
-        previewView.surfaceProvider = null
 
         runOnUiThread {
             setResult(RESULT_OK, Intent().putExtra(EXTRA_SCAN_RESULT, value))
