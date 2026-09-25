@@ -740,10 +740,10 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(sectionTitle("Connection"))
         root.addView(backendHealthPanel(), lp(bottom = UiTokens.Space.SM))
-        root.addView(settingsRow(R.drawable.ic_nt_backend, "Backend", BackendConfig.url(this)) { showBackendDialog() })
+        root.addView(settingsRow(R.drawable.ic_nt_backend, "Backend", BackendConfig.url(this)) { showBackendDialog() }, lp(bottom = UiTokens.Space.XS))
 
         root.addView(sectionTitle("Workflow"), lp(top = UiTokens.Space.LG))
-        root.addView(settingsRow(R.drawable.ic_nt_people, "Process servers", processServerSummary()) { showProcessServerSettings() })
+        root.addView(settingsRow(R.drawable.ic_nt_people, "Process servers", processServerSummary()) { showProcessServerSettings() }, lp(bottom = UiTokens.Space.XS))
         root.addView(settingsRow(R.drawable.ic_nt_reminder, "Reminders", "10, 7, 3, 1 days and hearing morning") {
             MaterialAlertDialogBuilder(this)
                 .setTitle("Reminders")
@@ -753,9 +753,9 @@ class MainActivity : AppCompatActivity() {
         })
 
         root.addView(sectionTitle("Display & data"), lp(top = UiTokens.Space.LG))
-        root.addView(settingsRow(R.drawable.ic_nt_fields, "Visible fields", "Choose what appears in notice details and exports") { showFieldsDialog() })
-        root.addView(settingsRow(R.drawable.ic_nt_appearance, "Appearance", themeSummary()) { showThemeDialog() })
-        root.addView(settingsRow(R.drawable.ic_nt_export, "Export", "CSV spreadsheet or JSON backup") { showExportDialog() })
+        root.addView(settingsRow(R.drawable.ic_nt_fields, "Visible fields", "Choose what appears in notice details and exports") { showFieldsDialog() }, lp(bottom = UiTokens.Space.XS))
+        root.addView(settingsRow(R.drawable.ic_nt_appearance, "Appearance", themeSummary()) { showThemeDialog() }, lp(bottom = UiTokens.Space.XS))
+        root.addView(settingsRow(R.drawable.ic_nt_export, "Export", "CSV spreadsheet or JSON backup") { showExportDialog() }, lp(bottom = UiTokens.Space.XS))
 
         root.addView(sectionTitle("About"), lp(top = UiTokens.Space.LG))
         root.addView(settingsRow(R.drawable.ic_nt_info, "Notice Tracker", "Debug build • Personal court-process utility") {
