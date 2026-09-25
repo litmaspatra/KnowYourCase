@@ -54,14 +54,23 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     companion object {
-        private val offsets = intArrayOf(10, 7, 3, 1, 0)
+        private val defaultOffsets = intArrayOf(10, 7, 3, 1, 0)
+
+        fun offsets(context: Context): IntArray {
+            val prefs = context.getSharedPreferences("notice_tracker_settings", Context.MODE_PRIVATE)
+            val raw = prefs.getString("reminder_days", null)
+            if (raw.isNullOrBlank()) return defaultOffsets
+            val parsed = raw.split(",").mapNotNull { it.trim().toIntOrNull() }
+                .filter { it >= 0 }.distinct().sortedDescending()
+            return if (parsed.isEmpty()) defaultOffsets else parsed.toIntArray()
+        }
 
         fun reschedule(context: Context, notice: NoticeEntity) {
             cancel(context, notice.id)
             if (notice.serviceStatus != "PENDING" || notice.nextHearing.isBlank()) return
             val hearing = runCatching { LocalDate.parse(notice.nextHearing) }.getOrNull() ?: return
 
-            offsets.forEach { daysBefore ->
+            offsets(context).forEach { daysBefore ->
                 val trigger = hearing.minusDays(daysBefore.toLong())
                     .atTime(8, 0)
                     .atZone(ZoneId.systemDefault())
@@ -82,7 +91,9 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         }
 
         fun cancel(context: Context, id: Long) {
-            offsets.forEach {
+            // Cancel both defaults and current custom offsets so changing settings
+            // never leaves stale reminder work behind.
+            (defaultOffsets.asList() + offsets(context).asList()).distinct().forEach {
                 WorkManager.getInstance(context).cancelUniqueWork("notice_" + id + "_" + it)
             }
         }
