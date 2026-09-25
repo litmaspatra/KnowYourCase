@@ -59,6 +59,7 @@ class MainActivity : AppCompatActivity() {
     private val prefs by lazy { getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
 
     private var backendHealth = "UNKNOWN"
+    private var loadingSnackbar: Snackbar? = null
 
     private val scanner = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -920,7 +921,7 @@ class MainActivity : AppCompatActivity() {
         val cleaned = raw.uppercase().replace(Regex("[^A-Z0-9]"), "")
         val cnr = Regex("[A-Z]{4}[0-9]{12}").find(cleaned)?.value
         if (cnr == null) {
-            toast("No valid 16-character CNR found.")
+            notifyUser("CNR must contain 4 letters followed by 12 digits.")
             return
         }
         lifecycleScope.launch {
@@ -939,7 +940,7 @@ class MainActivity : AppCompatActivity() {
     private fun createNotice(cnr: String) {
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { db.notices().insert(NoticeEntity(cnr = cnr, fetchedState = "QUEUED")) }
-            toast("Notice queued")
+            notifyUser("Notice added and queued for case lookup")
             reloadAndRender()
             pumpQueue()
         }
@@ -963,6 +964,7 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.IO) {
                 db.notices().update(n.copy(fetchedState = "QUEUED", lastError = "", updatedAt = System.currentTimeMillis()))
             }
+            notifyUser("Retrying case lookup")
             reloadAndRender()
             pumpQueue()
         }
@@ -1138,10 +1140,13 @@ class MainActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle("Assign process server")
             .setSingleChoiceItems(items, current) { dialog, which ->
-                saveNotice(n.copy(
-                    processServer = servers[which],
-                    updatedAt = System.currentTimeMillis()
-                ))
+                saveNotice(
+                    n.copy(
+                        processServer = servers[which],
+                        updatedAt = System.currentTimeMillis()
+                    ),
+                    successMessage = "Assigned to " + servers[which]
+                )
                 dialog.dismiss()
             }
             .setNegativeButton("Cancel", null)
@@ -1153,14 +1158,25 @@ class MainActivity : AppCompatActivity() {
             serviceStatus = status,
             updatedAt = System.currentTimeMillis()
         )
-        saveNotice(updated, cancelReminders = status != "PENDING")
+        val message = when (status) {
+            "SERVED" -> "Notice marked Served"
+            "UNSERVED" -> "Notice marked Unserved"
+            else -> "Notice moved back to Pending"
+        }
+        saveNotice(updated, cancelReminders = status != "PENDING", successMessage = message)
     }
 
-    private fun saveNotice(n: NoticeEntity, cancelReminders: Boolean = false) {
+    private fun saveNotice(
+        n: NoticeEntity,
+        cancelReminders: Boolean = false,
+        successMessage: String? = null
+    ) {
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { db.notices().update(n) }
-            if (cancelReminders) ReminderWorker.cancel(this@MainActivity, n.id) else ReminderWorker.reschedule(this@MainActivity, n)
+            if (cancelReminders) ReminderWorker.cancel(this@MainActivity, n.id)
+            else ReminderWorker.reschedule(this@MainActivity, n)
             reloadAndRender()
+            if (!successMessage.isNullOrBlank()) notifyUser(successMessage)
         }
     }
 
@@ -1252,7 +1268,7 @@ class MainActivity : AppCompatActivity() {
                 runCatching { RetrofitClient.service(this@MainActivity).health().isSuccessful }.getOrDefault(false)
             }
             backendHealth = if (ok) "ONLINE" else "OFFLINE"
-            toast(if (ok) "Backend is online" else "Backend is offline")
+            notifyUser(if (ok) "Backend is online" else "Backend check failed")
             if (activeTab == TAB_SETTINGS) renderCurrentTab()
         }
     }
@@ -1267,7 +1283,7 @@ class MainActivity : AppCompatActivity() {
                 prefs.edit().apply {
                     FIELD_KEYS.forEachIndexed { i, pair -> putBoolean("field_" + pair.first, checked[i]) }
                 }.apply()
-                toast("Field preferences saved")
+                notifyUser("Visible fields updated")
             }.show()
     }
 
@@ -1331,13 +1347,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun writeExport(uri: Uri, format: String) {
+        showLoadingFeedback("Exporting " + format.uppercase() + "…")
         lifecycleScope.launch {
             val data = withContext(Dispatchers.IO) { db.notices().all() }
             val output = if (format == "json") Gson().toJson(data) else buildCsv(data)
             withContext(Dispatchers.IO) {
                 contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(output) }
             }
-            toast(format.uppercase() + " exported")
+            loadingSnackbar?.dismiss()
+            loadingSnackbar = null
+            notifyUser(format.uppercase() + " export complete")
         }
     }
 
