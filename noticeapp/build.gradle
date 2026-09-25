@@ -11,7 +11,7 @@ android {
         minSdk 26
         targetSdk 34
         versionCode 7
-        versionName "0.7.0-checklist-debug"
+        versionName "0.6.1-debug"
         buildConfigField "String", "BASE_URL", '"https://knc-backend.onrender.com"'
     }
     buildFeatures { buildConfig true }
