@@ -1,59 +1,97 @@
 <resources>
     <style name="Theme.NoticeTracker" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">#205D9B</item>
-        <item name="colorSecondary">#D08C35</item>
-        <item name="android:fontFamily">sans</item>
+        <item name="colorPrimary">#315F8C</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#D5E5F7</item>
+        <item name="colorOnPrimaryContainer">#17324D</item>
+        <item name="colorSecondary">#6C5D45</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#EFE3CF</item>
+        <item name="colorOnSecondaryContainer">#3D3325</item>
+        <item name="colorSurface">#FBFCFE</item>
+        <item name="colorSurfaceVariant">#EEF1F4</item>
+        <item name="colorOnSurface">#1A1D21</item>
+        <item name="colorOnSurfaceVariant">#444A52</item>
+        <item name="colorOutline">#747A82</item>
+        <item name="colorOutlineVariant">#C7CBD1</item>
         <item name="android:navigationBarColor">?attr/colorSurface</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 
     <style name="Theme.NoticeTracker.Blue" parent="Theme.Material3.Light.NoActionBar">
-        <item name="colorPrimary">#155DA8</item>
-        <item name="colorSecondary">#3E7CB1</item>
-        <item name="colorSurface">#FFFFFF</item>
-        <item name="colorSurfaceVariant">#EAF2FB</item>
-        <item name="colorOnSurface">#142231</item>
-        <item name="android:windowBackground">#F7FAFD</item>
-        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="colorPrimary">#1F5F99</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#D4E7FA</item>
+        <item name="colorOnPrimaryContainer">#123A5D</item>
+        <item name="colorSecondary">#52697D</item>
+        <item name="colorSecondaryContainer">#DFEAF3</item>
+        <item name="colorSurface">#FBFDFF</item>
+        <item name="colorSurfaceVariant">#EDF4FA</item>
+        <item name="colorOnSurface">#17222D</item>
+        <item name="colorOnSurfaceVariant">#425466</item>
+        <item name="colorOutlineVariant">#C5D2DC</item>
+        <item name="android:navigationBarColor">#FBFDFF</item>
     </style>
 
     <style name="Theme.NoticeTracker.Mono" parent="Theme.Material3.Light.NoActionBar">
-        <item name="colorPrimary">#333333</item>
-        <item name="colorSecondary">#666666</item>
-        <item name="colorSurface">#FAFAFA</item>
-        <item name="colorSurfaceVariant">#EEEEEE</item>
-        <item name="colorOnSurface">#1A1A1A</item>
-        <item name="android:windowBackground">#F3F3F3</item>
-        <item name="android:navigationBarColor">#FAFAFA</item>
+        <item name="colorPrimary">#40464C</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#E3E7EA</item>
+        <item name="colorOnPrimaryContainer">#252A2F</item>
+        <item name="colorSecondary">#686E73</item>
+        <item name="colorSecondaryContainer">#ECEFF1</item>
+        <item name="colorSurface">#FCFCFD</item>
+        <item name="colorSurfaceVariant">#F0F1F2</item>
+        <item name="colorOnSurface">#202326</item>
+        <item name="colorOnSurfaceVariant">#4F5458</item>
+        <item name="colorOutlineVariant">#CFD2D4</item>
+        <item name="android:navigationBarColor">#FCFCFD</item>
     </style>
 
     <style name="Theme.NoticeTracker.BlackWhite" parent="Theme.Material3.Light.NoActionBar">
-        <item name="colorPrimary">#000000</item>
-        <item name="colorSecondary">#000000</item>
+        <item name="colorPrimary">#171717</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#E9E9E9</item>
+        <item name="colorOnPrimaryContainer">#171717</item>
+        <item name="colorSecondary">#4E4E4E</item>
+        <item name="colorSecondaryContainer">#F0F0F0</item>
         <item name="colorSurface">#FFFFFF</item>
-        <item name="colorSurfaceVariant">#F4F4F4</item>
-        <item name="colorOnSurface">#000000</item>
-        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="colorSurfaceVariant">#F5F5F5</item>
+        <item name="colorOnSurface">#111111</item>
+        <item name="colorOnSurfaceVariant">#464646</item>
+        <item name="colorOutlineVariant">#D2D2D2</item>
         <item name="android:navigationBarColor">#FFFFFF</item>
     </style>
 
     <style name="Theme.NoticeTracker.Midnight" parent="Theme.Material3.Dark.NoActionBar">
-        <item name="colorPrimary">#90CAF9</item>
-        <item name="colorSecondary">#B8C7D9</item>
-        <item name="colorSurface">#111A24</item>
-        <item name="colorSurfaceVariant">#1B2836</item>
-        <item name="colorOnSurface">#EDF4FA</item>
-        <item name="android:windowBackground">#0B121A</item>
-        <item name="android:navigationBarColor">#111A24</item>
+        <item name="colorPrimary">#A9CBEA</item>
+        <item name="colorOnPrimary">#14324B</item>
+        <item name="colorPrimaryContainer">#294A66</item>
+        <item name="colorOnPrimaryContainer">#D9E9F6</item>
+        <item name="colorSecondary">#D5C3A5</item>
+        <item name="colorSecondaryContainer">#4B4133</item>
+        <item name="colorSurface">#11171D</item>
+        <item name="colorSurfaceVariant">#20282F</item>
+        <item name="colorOnSurface">#EBEFF3</item>
+        <item name="colorOnSurfaceVariant">#C1C7CD</item>
+        <item name="colorOutlineVariant">#414A52</item>
+        <item name="android:navigationBarColor">#11171D</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 
     <style name="Theme.NoticeTracker.Ember" parent="Theme.Material3.Light.NoActionBar">
-        <item name="colorPrimary">#8C3B18</item>
-        <item name="colorSecondary">#B75A2A</item>
-        <item name="colorSurface">#FFF9F4</item>
-        <item name="colorSurfaceVariant">#F7E7DC</item>
-        <item name="colorOnSurface">#2B1B14</item>
-        <item name="android:windowBackground">#FFF5EE</item>
-        <item name="android:navigationBarColor">#FFF9F4</item>
+        <item name="colorPrimary">#8E4D2F</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#F6DFD1</item>
+        <item name="colorOnPrimaryContainer">#512715</item>
+        <item name="colorSecondary">#74604C</item>
+        <item name="colorSecondaryContainer">#EFE1D3</item>
+        <item name="colorSurface">#FFFBF7</item>
+        <item name="colorSurfaceVariant">#F5EDE6</item>
+        <item name="colorOnSurface">#271D17</item>
+        <item name="colorOnSurfaceVariant">#584A41</item>
+        <item name="colorOutlineVariant">#D8C7BC</item>
+        <item name="android:navigationBarColor">#FFFBF7</item>
     </style>
 
     <style name="Theme.NoticeTracker.Transparent" parent="Theme.Material3.DayNight.NoActionBar">
