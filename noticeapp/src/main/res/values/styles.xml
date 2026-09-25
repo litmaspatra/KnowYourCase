@@ -152,7 +152,7 @@
     </style>
 
     <style name="Theme.NoticeTracker.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/nt_surface</item>
+        <item name="windowSplashScreenBackground">@color/nt_primary_container</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_notice_pixel</item>
         <item name="postSplashScreenTheme">@style/Theme.NoticeTracker</item>
     </style>
