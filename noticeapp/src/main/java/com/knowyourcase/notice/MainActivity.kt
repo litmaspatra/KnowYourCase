@@ -106,6 +106,7 @@ class MainActivity : AppCompatActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         buildShell()
         updateSystemBars()
+        showInitialLoadingState()
         if (prefs.getBoolean(KEY_ONBOARDED, false)) {
             requestNotificationPermission()
         } else {
@@ -210,6 +211,37 @@ class MainActivity : AppCompatActivity() {
             bottomNav.setPadding(bottomNav.paddingLeft, bottomNav.paddingTop, bottomNav.paddingRight, bars.bottom)
             insets
         }
+    }
+
+    private fun showInitialLoadingState() {
+        content.removeAllViews()
+        val wrap = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(
+                dp(UiTokens.Space.MD),
+                dp(UiTokens.Space.LG),
+                dp(UiTokens.Space.MD),
+                dp(UiTokens.Space.LG)
+            )
+        }
+        wrap.addView(
+            statePanel(
+                StateKind.LOADING,
+                "Loading your notice desk",
+                "Reading saved notices and pending work.",
+                R.drawable.ic_nt_sync
+            )
+        )
+        wrap.addView(
+            com.google.android.material.progressindicator.LinearProgressIndicator(this).apply {
+                isIndeterminate = true
+            },
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(UiTokens.Space.SM) }
+        )
+        content.addView(wrap)
     }
 
     private fun reloadAndRender() {
@@ -972,8 +1004,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun createNotice(cnr: String) {
+        showLoadingFeedback("Adding notice…")
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { db.notices().insert(NoticeEntity(cnr = cnr, fetchedState = "QUEUED")) }
+            loadingSnackbar?.dismiss()
+            loadingSnackbar = null
             notifyUser("Notice added and queued for case lookup")
             reloadAndRender()
             pumpQueue()
@@ -994,10 +1029,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun retryNotice(n: NoticeEntity) {
+        showLoadingFeedback("Preparing retry…")
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
                 db.notices().update(n.copy(fetchedState = "QUEUED", lastError = "", updatedAt = System.currentTimeMillis()))
             }
+            loadingSnackbar?.dismiss()
+            loadingSnackbar = null
             notifyUser("Retrying case lookup")
             reloadAndRender()
             pumpQueue()
@@ -1205,11 +1243,14 @@ class MainActivity : AppCompatActivity() {
         cancelReminders: Boolean = false,
         successMessage: String? = null
     ) {
+        showLoadingFeedback("Saving notice…")
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { db.notices().update(n) }
             if (cancelReminders) ReminderWorker.cancel(this@MainActivity, n.id)
             else ReminderWorker.reschedule(this@MainActivity, n)
             reloadAndRender()
+            loadingSnackbar?.dismiss()
+            loadingSnackbar = null
             if (!successMessage.isNullOrBlank()) notifyUser(successMessage)
         }
     }
@@ -1383,14 +1424,28 @@ class MainActivity : AppCompatActivity() {
     private fun writeExport(uri: Uri, format: String) {
         showLoadingFeedback("Exporting " + format.uppercase() + "…")
         lifecycleScope.launch {
-            val data = withContext(Dispatchers.IO) { db.notices().all() }
-            val output = if (format == "json") Gson().toJson(data) else buildCsv(data)
-            withContext(Dispatchers.IO) {
-                contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(output) }
+            val result = runCatching {
+                val data = withContext(Dispatchers.IO) { db.notices().all() }
+                val output = if (format == "json") Gson().toJson(data) else buildCsv(data)
+                withContext(Dispatchers.IO) {
+                    val stream = contentResolver.openOutputStream(uri)
+                        ?: error("Could not open export destination")
+                    stream.bufferedWriter().use { it.write(output) }
+                }
             }
             loadingSnackbar?.dismiss()
             loadingSnackbar = null
-            notifyUser(format.uppercase() + " export complete")
+            if (result.isSuccess) {
+                notifyUser(format.uppercase() + " export complete")
+            } else {
+                val bar = Snackbar.make(
+                    appRoot,
+                    "Export failed. Check the destination and try again.",
+                    Snackbar.LENGTH_LONG
+                ).setAnchorView(bottomNav)
+                bar.setAction("Retry") { writeExport(uri, format) }
+                bar.show()
+            }
         }
     }
 
