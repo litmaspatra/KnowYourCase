@@ -1408,6 +1408,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         lateinit var dialog: AlertDialog
+        lateinit var renderList: () -> Unit
 
         fun showAddDialog() {
             val field = modernTextField(
@@ -1469,7 +1470,7 @@ class MainActivity : AppCompatActivity() {
                 .show()
         }
 
-        fun renderList() {
+        renderList = {
             container.removeAllViews()
 
             if (servers.isEmpty()) {
