@@ -91,9 +91,9 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         }
 
         fun cancel(context: Context, id: Long) {
-            // Cancel both defaults and current custom offsets so changing settings
-            // never leaves stale reminder work behind.
-            (defaultOffsets.asList() + offsets(context).asList()).distinct().forEach {
+            // Reminder settings are bounded to day offsets; clear the whole small
+            // range so changing a custom schedule cannot leave stale work behind.
+            (0..31).forEach {
                 WorkManager.getInstance(context).cancelUniqueWork("notice_" + id + "_" + it)
             }
         }
