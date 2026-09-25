@@ -652,120 +652,132 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderSettings() {
-        val scroll = ScrollView(this)
-        val root = page("Settings", "Backend, appearance, fields and exports")
-        root.addView(backendHealthCard(), lp(bottom = 10))
-        root.addView(settingCard(R.drawable.ic_ui_backend, "Backend setup", BackendConfig.url(this)) { showBackendDialog() }, lp(bottom = 12))
-        root.addView(settingCard(R.drawable.ic_ui_fields, "Data & fields", "Choose what appears in notice details and exports") { showFieldsDialog() }, lp(bottom = 12))
-        root.addView(settingCard(R.drawable.ic_ui_appearance, "Appearance", themeSummary()) { showThemeDialog() }, lp(bottom = 12))
-        root.addView(settingCard(R.drawable.ic_ui_export, "Export data", "CSV spreadsheet or JSON backup") { showExportDialog() }, lp(bottom = 12))
-        root.addView(settingCard(R.drawable.ic_ui_reminder, "Reminders", "10, 7, 3, 1 days and hearing morning") {
-            MaterialAlertDialogBuilder(this).setTitle("Reminders")
-                .setMessage("Pending notices are reminded before the next hearing. Marking Served or Unserved completes the notice and cancels pending reminders.")
-                .setPositiveButton("Done", null).show()
-        }, lp(bottom = 12))
-        root.addView(settingCard(R.drawable.ic_ui_people, "Process servers", processServerSummary()) { showProcessServerSettings() }, lp(bottom = 12))
-        root.addView(settingCard(R.drawable.ic_ui_info, "App info", "Notice Tracker • Debug") {
-            MaterialAlertDialogBuilder(this).setTitle("Notice Tracker")
-                .setMessage("Standalone personal app. Default backend: " + BackendConfig.DEFAULT_URL)
-                .setPositiveButton("Done", null).show()
-        }, lp(bottom = 12))
+        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val root = page()
+
+        root.addView(heading("Desk setup", "Keep the app aligned with how your process desk actually works."), lp(bottom = 18))
+
+        root.addView(sectionTitle("Connection"))
+        root.addView(backendHealthPanel(), lp(bottom = 14))
+        root.addView(settingsRow(R.drawable.ic_ui_backend, "Backend", BackendConfig.url(this)) { showBackendDialog() })
+
+        root.addView(sectionTitle("Workflow"), lp(top = 22))
+        root.addView(settingsRow(R.drawable.ic_ui_people, "Process servers", processServerSummary()) { showProcessServerSettings() })
+        root.addView(settingsRow(R.drawable.ic_ui_reminder, "Reminders", "10, 7, 3, 1 days and hearing morning") {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Reminders")
+                .setMessage("Only Pending notices are reminded. Served and Unserved notices are complete and stop future reminders.")
+                .setPositiveButton("Done", null)
+                .show()
+        })
+
+        root.addView(sectionTitle("Display & data"), lp(top = 22))
+        root.addView(settingsRow(R.drawable.ic_ui_fields, "Visible fields", "Choose what appears in notice details and exports") { showFieldsDialog() })
+        root.addView(settingsRow(R.drawable.ic_ui_appearance, "Appearance", themeSummary()) { showThemeDialog() })
+        root.addView(settingsRow(R.drawable.ic_ui_export, "Export", "CSV spreadsheet or JSON backup") { showExportDialog() })
+
+        root.addView(sectionTitle("About"), lp(top = 22))
+        root.addView(settingsRow(R.drawable.ic_ui_info, "Notice Tracker", "Debug build • Personal court-process utility") {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Notice Tracker")
+                .setMessage("Local-first notice tracking with eCourts case lookup. Default backend: " + BackendConfig.DEFAULT_URL)
+                .setPositiveButton("Done", null)
+                .show()
+        })
+
         scroll.addView(root)
         content.addView(scroll)
     }
 
-    private fun backendHealthCard() = card().apply {
-        addView(LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(14), dp(12), dp(14))
+    private fun backendHealthPanel() = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(14), dp(13), dp(10), dp(13))
+        background = roundedSurface(com.google.android.material.R.attr.colorSurfaceVariant, 18)
 
-            addView(TextView(this@MainActivity).apply {
-                text = "●"
-                textSize = 24f
-                setTextColor(when (backendHealth) {
+        addView(View(this@MainActivity).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(when (backendHealth) {
                     "ONLINE" -> 0xFF2E7D32.toInt()
                     "OFFLINE" -> 0xFFC62828.toInt()
-                    "CHECKING" -> 0xFFF9A825.toInt()
-                    else -> 0xFF757575.toInt()
+                    "CHECKING" -> 0xFFE59D12.toInt()
+                    else -> 0xFF7A7F87.toInt()
                 })
-                gravity = Gravity.CENTER
-            }, LinearLayout.LayoutParams(dp(42), dp(42)))
+            }
+        }, LinearLayout.LayoutParams(dp(10), dp(10)).apply { marginEnd = dp(12) })
 
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(TextView(this@MainActivity).apply {
-                    text = "Backend Health"
-                    textSize = 16f
-                    setTypeface(typeface, Typeface.BOLD)
-                })
-                addView(TextView(this@MainActivity).apply {
-                    text = when (backendHealth) {
-                        "ONLINE" -> "Online • " + BackendConfig.url(this@MainActivity)
-                        "OFFLINE" -> "Offline • " + BackendConfig.url(this@MainActivity)
-                        "CHECKING" -> "Checking backend…"
-                        else -> "Not checked • " + BackendConfig.url(this@MainActivity)
-                    }
-                    textSize = 12f
-                    alpha = .65f
-                })
-            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-
-            addView(MaterialButton(this@MainActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-                text = if (backendHealth == "CHECKING") "Checking" else "Check now"
-                isEnabled = backendHealth != "CHECKING"
-                isAllCaps = false
-                setOnClickListener { testBackend() }
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@MainActivity).apply {
+                text = when (backendHealth) {
+                    "ONLINE" -> "Backend online"
+                    "OFFLINE" -> "Backend offline"
+                    "CHECKING" -> "Checking backend…"
+                    else -> "Backend not checked"
+                }
+                textSize = 14f
+                setTypeface(typeface, Typeface.BOLD)
             })
+            addView(TextView(this@MainActivity).apply {
+                text = BackendConfig.url(this@MainActivity)
+                textSize = 12f
+                alpha = .58f
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
+            })
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+        addView(MaterialButton(
+            this@MainActivity,
+            null,
+            com.google.android.material.R.attr.materialButtonTextStyle
+        ).apply {
+            text = if (backendHealth == "CHECKING") "Checking" else "Check"
+            isAllCaps = false
+            isEnabled = backendHealth != "CHECKING"
+            minHeight = dp(48)
+            setOnClickListener { testBackend() }
         })
     }
 
-    private fun settingCard(iconRes: Int, title: String, subtitle: String, click: () -> Unit) = card().apply {
+    private fun settingsRow(iconRes: Int, title: String, subtitle: String, click: () -> Unit) = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(4), dp(10), dp(2), dp(10))
         isClickable = true
         isFocusable = true
         setOnClickListener { click() }
+
+        addView(ImageView(this@MainActivity).apply {
+            setImageResource(iconRes)
+            setColorFilter(themeColor(com.google.android.material.R.attr.colorPrimary))
+            contentDescription = null
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            background = roundedSurface(com.google.android.material.R.attr.colorSecondaryContainer, 14)
+        }, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(13) })
+
         addView(LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(15), dp(14), dp(15))
-
-            addView(FrameLayout(this@MainActivity).apply {
-                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_notice_info)
-                addView(ImageView(this@MainActivity).apply {
-                    setImageResource(iconRes)
-                    setColorFilter(themeColor(com.google.android.material.R.attr.colorOnSurface))
-                    contentDescription = null
-                    setPadding(dp(11), dp(11), dp(11), dp(11))
-                }, FrameLayout.LayoutParams(dp(44), dp(44), Gravity.CENTER))
-            }, LinearLayout.LayoutParams(dp(48), dp(48)).apply {
-                marginEnd = dp(14)
-            })
-
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(TextView(this@MainActivity).apply {
-                    text = title
-                    textSize = 16f
-                    setTypeface(typeface, Typeface.BOLD)
-                    maxLines = 1
-                    ellipsize = android.text.TextUtils.TruncateAt.END
-                })
-                addView(TextView(this@MainActivity).apply {
-                    text = subtitle
-                    textSize = 13f
-                    alpha = .65f
-                    maxLines = 2
-                    ellipsize = android.text.TextUtils.TruncateAt.END
-                    setPadding(0, dp(3), 0, 0)
-                })
-            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-
+            orientation = LinearLayout.VERTICAL
             addView(TextView(this@MainActivity).apply {
-                text = "›"
-                textSize = 26f
-                alpha = .45f
-                gravity = Gravity.CENTER
-            }, LinearLayout.LayoutParams(dp(28), dp(44)))
+                text = title
+                textSize = 15f
+                setTypeface(typeface, Typeface.BOLD)
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = subtitle
+                textSize = 12f
+                alpha = .62f
+                maxLines = 2
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setPadding(0, dp(2), 0, 0)
+            })
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+        addView(TextView(this@MainActivity).apply {
+            text = "›"
+            textSize = 24f
+            alpha = .34f
         })
     }
 
@@ -838,74 +850,148 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showNotice(n: NoticeEntity) {
+        val sheet = BottomSheetDialog(this)
+        val scroll = ScrollView(this)
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(10), dp(22), dp(4))
+            setPadding(dp(20), dp(12), dp(20), dp(28))
         }
-        fun line(label: String, value: String) {
-            if (value.isBlank() || !fieldEnabled(label)) return
-            box.addView(TextView(this).apply {
-                text = label
-                textSize = 11f
-                alpha = .6f
-                setTypeface(typeface, Typeface.BOLD)
-                setPadding(0, dp(9), 0, dp(2))
+
+        box.addView(View(this).apply {
+            background = roundedSurface(com.google.android.material.R.attr.colorOutlineVariant, 999)
+        }, LinearLayout.LayoutParams(dp(42), dp(4)).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            bottomMargin = dp(18)
+        })
+
+        box.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(TextView(this@MainActivity).apply {
+                    text = n.caseNumber.ifBlank { n.cnr }
+                    textSize = 21f
+                    setTypeface(typeface, Typeface.BOLD)
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = n.caseTitle.ifBlank { n.cnr }
+                    textSize = 14f
+                    alpha = .66f
+                    maxLines = 2
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    setPadding(0, dp(3), 0, 0)
+                })
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(statusChip(n))
+        }, lp(bottom = 18))
+
+        val details = listOf(
+            "CNR" to n.cnr,
+            "Court" to n.courtName,
+            "Petitioner" to n.petitioner,
+            "Respondent" to n.respondent,
+            "Petitioner advocate" to n.petitionerAdvocate,
+            "Respondent advocate" to n.respondentAdvocate,
+            "Next hearing" to n.nextHearing,
+            "Stage" to n.caseStage,
+            "Judge" to n.judge,
+            "Process server" to n.processServer.ifBlank { "Unassigned" }
+        )
+        details.forEach { (label, value) ->
+            if (value.isNotBlank() && fieldEnabled(label)) box.addView(detailRow(label, value))
+        }
+
+        box.addView(MaterialButton(
+            this,
+            null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle
+        ).apply {
+            text = if (n.processServer.isBlank()) "Assign process server" else "Change process server"
+            setIconResource(R.drawable.ic_action_assign)
+            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+            isAllCaps = false
+            minHeight = dp(50)
+            setOnClickListener {
+                sheet.dismiss()
+                assignProcessServer(n)
+            }
+        }, lp(top = 18, bottom = 8))
+
+        if (n.serviceStatus == "PENDING") {
+            box.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(MaterialButton(this@MainActivity).apply {
+                    text = "Served"
+                    setIconResource(R.drawable.ic_action_served)
+                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+                    isAllCaps = false
+                    minHeight = dp(50)
+                    setOnClickListener {
+                        sheet.dismiss()
+                        markServiceStatus(n, "SERVED")
+                    }
+                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
+                addView(MaterialButton(
+                    this@MainActivity,
+                    null,
+                    com.google.android.material.R.attr.materialButtonOutlinedStyle
+                ).apply {
+                    text = "Unserved"
+                    setIconResource(R.drawable.ic_action_unserved)
+                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+                    isAllCaps = false
+                    minHeight = dp(50)
+                    setOnClickListener {
+                        sheet.dismiss()
+                        markServiceStatus(n, "UNSERVED")
+                    }
+                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             })
-            box.addView(TextView(this).apply { text = value; textSize = 15f })
+        } else {
+            box.addView(MaterialButton(
+                this,
+                null,
+                com.google.android.material.R.attr.materialButtonTextStyle
+            ).apply {
+                text = "Move to pending"
+                isAllCaps = false
+                minHeight = dp(48)
+                setOnClickListener {
+                    sheet.dismiss()
+                    markServiceStatus(n, "PENDING")
+                }
+            })
         }
-        box.addView(TextView(this).apply {
-            text = n.caseNumber.ifBlank { n.cnr }
-            textSize = 21f
+
+        if (n.fetchedState == "RETRY_REQUIRED") {
+            box.addView(outlineButton("Refresh case details") {
+                sheet.dismiss()
+                retryNotice(n)
+            }, lp(top = 10))
+        }
+
+        scroll.addView(box)
+        sheet.setContentView(scroll)
+        sheet.show()
+    }
+
+    private fun detailRow(label: String, value: String) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(0, dp(8), 0, dp(8))
+        addView(TextView(this@MainActivity).apply {
+            text = label
+            textSize = 11f
+            alpha = .52f
             setTypeface(typeface, Typeface.BOLD)
         })
-        if (n.caseTitle.isNotBlank()) box.addView(TextView(this).apply {
-            text = n.caseTitle
-            textSize = 15f
-            alpha = .75f
-            setPadding(0, dp(3), 0, dp(6))
+        addView(TextView(this@MainActivity).apply {
+            text = value
+            textSize = 14f
+            setPadding(0, dp(2), 0, 0)
         })
-        line("CNR", n.cnr)
-        line("Court", n.courtName)
-        line("Petitioner", n.petitioner)
-        line("Respondent", n.respondent)
-        line("Petitioner advocate", n.petitionerAdvocate)
-        line("Respondent advocate", n.respondentAdvocate)
-        line("Next hearing", n.nextHearing)
-        line("Stage", n.caseStage)
-        line("Judge", n.judge)
-        line("Process server", n.processServer.ifBlank { "Not assigned" })
-        line("Service", when (n.serviceStatus) {
-            "SERVED" -> "Served"
-            "UNSERVED" -> "Unserved"
-            else -> "Pending"
-        })
-
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle("Notice Details")
-            .setView(ScrollView(this).apply { addView(box) })
-            .setNegativeButton("Close", null)
-            .create()
-
-        box.addView(primaryButton("Assign process server") {
-            dialog.dismiss()
-            assignProcessServer(n)
-        }, lp(top = 14))
-        if (n.serviceStatus == "PENDING") {
-            box.addView(primaryButton("Mark served") {
-                dialog.dismiss()
-                markServiceStatus(n, "SERVED")
-            }, lp(top = 12))
-            box.addView(outlineButton("Mark unserved") {
-                dialog.dismiss()
-                markServiceStatus(n, "UNSERVED")
-            }, lp(top = 10))
-        } else {
-            box.addView(outlineButton("Move to pending") {
-                dialog.dismiss()
-                markServiceStatus(n, "PENDING")
-            }, lp(top = 12))
-        }
-        dialog.show()
     }
 
     private fun assignProcessServer(n: NoticeEntity) {
