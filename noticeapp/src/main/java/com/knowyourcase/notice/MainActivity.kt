@@ -876,13 +876,44 @@ class MainActivity : AppCompatActivity() {
             hint = "RJTO010012342026",
             inputTypeValue = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
         )
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle("Enter CNR")
             .setMessage("Enter the 16-character CNR printed on the notice.")
             .setView(field.first)
             .setNegativeButton("Cancel", null)
-            .setPositiveButton("Add") { _, _ -> handleCnrInput(field.second.text?.toString().orEmpty()) }
-            .show()
+            .setPositiveButton("Add", null)
+            .create()
+
+        dialog.setOnShowListener {
+            val add = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            add.isEnabled = false
+            field.second.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(value: CharSequence?, start: Int, before: Int, count: Int) {
+                    val raw = value?.toString().orEmpty().uppercase().replace(Regex("[^A-Z0-9]"), "")
+                    val valid = Regex("[A-Z]{4}[0-9]{12}").matches(raw)
+                    add.isEnabled = valid
+                    field.first.error = when {
+                        raw.isBlank() -> null
+                        valid -> null
+                        else -> "Use 4 letters followed by 12 digits."
+                    }
+                }
+                override fun afterTextChanged(s: Editable?) = Unit
+            })
+            add.setOnClickListener {
+                val raw = field.second.text?.toString().orEmpty()
+                val cleaned = raw.uppercase().replace(Regex("[^A-Z0-9]"), "")
+                if (Regex("[A-Z]{4}[0-9]{12}").matches(cleaned)) {
+                    field.first.error = null
+                    dialog.dismiss()
+                    handleCnrInput(cleaned)
+                } else {
+                    field.first.error = "Use 4 letters followed by 12 digits."
+                }
+            }
+        }
+        dialog.show()
     }
 
     private fun handleCnrInput(raw: String) {
@@ -939,44 +970,63 @@ class MainActivity : AppCompatActivity() {
 
     private fun showNotice(n: NoticeEntity) {
         val sheet = BottomSheetDialog(this)
-        val scroll = ScrollView(this)
+        val scroll = ScrollView(this).apply { isFillViewport = true }
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(12), dp(20), dp(28))
+            setPadding(
+                dp(UiTokens.Space.MD),
+                dp(UiTokens.Space.SM),
+                dp(UiTokens.Space.MD),
+                dp(UiTokens.Space.LG)
+            )
         }
-
-        box.addView(View(this).apply {
-            background = roundedSurface(com.google.android.material.R.attr.colorOutlineVariant, 999)
-        }, LinearLayout.LayoutParams(dp(42), dp(4)).apply {
-            gravity = Gravity.CENTER_HORIZONTAL
-            bottomMargin = dp(18)
-        })
 
         box.addView(LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 addView(TextView(this@MainActivity).apply {
                     text = n.caseNumber.ifBlank { n.cnr }
-                    textSize = 21f
-                    setTypeface(typeface, Typeface.BOLD)
+                    applyType(TextRole.TITLE, true)
                     maxLines = 1
                     ellipsize = android.text.TextUtils.TruncateAt.END
                 })
                 addView(TextView(this@MainActivity).apply {
                     text = n.caseTitle.ifBlank { n.cnr }
-                    textSize = 14f
-                    alpha = .66f
+                    applyType(TextRole.LABEL)
+                    setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
                     maxLines = 2
                     ellipsize = android.text.TextUtils.TruncateAt.END
-                    setPadding(0, dp(3), 0, 0)
+                    setPadding(0, dp(UiTokens.Space.XXS), 0, 0)
                 })
             }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            addView(statusChip(n))
-        }, lp(bottom = 18))
 
-        val details = listOf(
+            addView(ImageButton(this@MainActivity).apply {
+                setImageResource(R.drawable.ic_nt_close)
+                setColorFilter(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                background = roundedSurface(
+                    com.google.android.material.R.attr.colorSurfaceVariant,
+                    UiTokens.Radius.PILL
+                )
+                contentDescription = "Close notice details"
+                setPadding(
+                    dp(UiTokens.Space.SM),
+                    dp(UiTokens.Space.SM),
+                    dp(UiTokens.Space.SM),
+                    dp(UiTokens.Space.SM)
+                )
+                setOnClickListener { sheet.dismiss() }
+            }, LinearLayout.LayoutParams(dp(UiTokens.MIN_TOUCH), dp(UiTokens.MIN_TOUCH)))
+        }, lp(bottom = UiTokens.Space.MD))
+
+        box.addView(statusChip(n), LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { bottomMargin = dp(UiTokens.Space.MD) })
+
+        val fields = listOf(
             "CNR" to n.cnr,
             "Court" to n.courtName,
             "Petitioner" to n.petitioner,
@@ -988,77 +1038,64 @@ class MainActivity : AppCompatActivity() {
             "Judge" to n.judge,
             "Process server" to n.processServer.ifBlank { "Unassigned" }
         )
-        details.forEach { (label, value) ->
-            if (value.isNotBlank() && fieldEnabled(label)) box.addView(detailRow(label, value))
+        fields.forEach { pair ->
+            if (pair.second.isNotBlank() && fieldEnabled(pair.first)) {
+                box.addView(detailRow(pair.first, pair.second))
+            }
         }
 
-        box.addView(MaterialButton(
-            this,
-            null,
-            com.google.android.material.R.attr.materialButtonOutlinedStyle
-        ).apply {
-            text = if (n.processServer.isBlank()) "Assign process server" else "Change process server"
-            setIconResource(R.drawable.ic_action_assign)
-            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-            isAllCaps = false
-            minHeight = dp(50)
-            setOnClickListener {
+        if (n.fetchedState == "RETRY_REQUIRED") {
+            box.addView(
+                statePanel(
+                    StateKind.ERROR,
+                    "Case details unavailable",
+                    n.lastError.ifBlank { "The eCourts lookup did not complete." },
+                    R.drawable.ic_nt_error,
+                    "Retry"
+                ) {
+                    sheet.dismiss()
+                    retryNotice(n)
+                },
+                lp(top = UiTokens.Space.MD)
+            )
+        }
+
+        box.addView(
+            outlineButton(
+                if (n.processServer.isBlank()) "Assign process server" else "Change process server",
+                R.drawable.ic_nt_assign
+            ) {
                 sheet.dismiss()
                 assignProcessServer(n)
-            }
-        }, lp(top = 18, bottom = 8))
+            },
+            lp(top = UiTokens.Space.MD, bottom = UiTokens.Space.XS)
+        )
 
         if (n.serviceStatus == "PENDING") {
             box.addView(LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
-                addView(MaterialButton(this@MainActivity).apply {
-                    text = "Served"
-                    setIconResource(R.drawable.ic_action_served)
-                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-                    isAllCaps = false
-                    minHeight = dp(50)
-                    setOnClickListener {
+                addView(
+                    primaryButton("Served", R.drawable.ic_nt_served) {
                         sheet.dismiss()
                         markServiceStatus(n, "SERVED")
+                    },
+                    LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        marginEnd = dp(UiTokens.Space.XS)
                     }
-                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
-                addView(MaterialButton(
-                    this@MainActivity,
-                    null,
-                    com.google.android.material.R.attr.materialButtonOutlinedStyle
-                ).apply {
-                    text = "Unserved"
-                    setIconResource(R.drawable.ic_action_unserved)
-                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-                    isAllCaps = false
-                    minHeight = dp(50)
-                    setOnClickListener {
+                )
+                addView(
+                    outlineButton("Unserved", R.drawable.ic_nt_unserved) {
                         sheet.dismiss()
                         markServiceStatus(n, "UNSERVED")
-                    }
-                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                    },
+                    LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                )
             })
         } else {
-            box.addView(MaterialButton(
-                this,
-                null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle
-            ).apply {
-                text = "Move to pending"
-                isAllCaps = false
-                minHeight = dp(48)
-                setOnClickListener {
-                    sheet.dismiss()
-                    markServiceStatus(n, "PENDING")
-                }
-            })
-        }
-
-        if (n.fetchedState == "RETRY_REQUIRED") {
-            box.addView(outlineButton("Refresh case details") {
+            box.addView(outlineButton("Move to pending") {
                 sheet.dismiss()
-                retryNotice(n)
-            }, lp(top = 10))
+                markServiceStatus(n, "PENDING")
+            })
         }
 
         scroll.addView(box)
@@ -1068,17 +1105,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun detailRow(label: String, value: String) = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(0, dp(8), 0, dp(8))
+        setPadding(0, dp(UiTokens.Space.XS), 0, dp(UiTokens.Space.XS))
         addView(TextView(this@MainActivity).apply {
             text = label
-            textSize = 11f
-            alpha = .52f
-            setTypeface(typeface, Typeface.BOLD)
+            applyType(TextRole.CAPTION, true)
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
         })
         addView(TextView(this@MainActivity).apply {
             text = value
-            textSize = 14f
-            setPadding(0, dp(2), 0, 0)
+            applyType(TextRole.BODY)
+            setPadding(0, dp(UiTokens.Space.XXS), 0, 0)
         })
     }
 
@@ -1138,29 +1174,74 @@ class MainActivity : AppCompatActivity() {
 
         val wrap = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(4), dp(4), dp(4), 0)
+            setPadding(
+                dp(UiTokens.Space.XXS),
+                dp(UiTokens.Space.XXS),
+                dp(UiTokens.Space.XXS),
+                0
+            )
             addView(field.first)
             addView(TextView(this@MainActivity).apply {
                 text = "Default: " + BackendConfig.DEFAULT_URL
-                textSize = 12f
-                alpha = .58f
-                setPadding(dp(4), dp(10), dp(4), 0)
+                applyType(TextRole.CAPTION)
+                setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                setPadding(0, dp(UiTokens.Space.XS), 0, 0)
             })
         }
 
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle("Backend setup")
             .setView(wrap)
-            .setNeutralButton("Use default") { _, _ ->
-                BackendConfig.reset(this)
-                renderCurrentTab()
-            }
+            .setNeutralButton("Use default", null)
             .setNegativeButton("Cancel", null)
-            .setPositiveButton("Save") { _, _ ->
-                BackendConfig.save(this, field.second.text?.toString().orEmpty())
+            .setPositiveButton("Save", null)
+            .create()
+
+        fun validUrl(raw: String): Boolean {
+            val uri = runCatching { Uri.parse(raw.trim()) }.getOrNull() ?: return false
+            return (uri.scheme == "https" || uri.scheme == "http") && !uri.host.isNullOrBlank()
+        }
+
+        dialog.setOnShowListener {
+            val save = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            val reset = dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
+
+            fun validate(raw: String) {
+                val valid = validUrl(raw)
+                save.isEnabled = valid
+                field.first.error = when {
+                    raw.isBlank() -> "Enter a backend URL."
+                    valid -> null
+                    else -> "Use a complete http:// or https:// URL."
+                }
+            }
+
+            validate(field.second.text?.toString().orEmpty())
+            field.second.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(value: CharSequence?, start: Int, before: Int, count: Int) {
+                    validate(value?.toString().orEmpty())
+                }
+                override fun afterTextChanged(s: Editable?) = Unit
+            })
+
+            save.setOnClickListener {
+                val raw = field.second.text?.toString().orEmpty().trim()
+                if (validUrl(raw)) {
+                    BackendConfig.save(this, raw)
+                    dialog.dismiss()
+                    notifyUser("Backend saved")
+                    testBackend()
+                }
+            }
+            reset.setOnClickListener {
+                BackendConfig.reset(this)
+                dialog.dismiss()
+                notifyUser("Default backend restored")
                 testBackend()
             }
-            .show()
+        }
+        dialog.show()
     }
 
     private fun testBackend() {
