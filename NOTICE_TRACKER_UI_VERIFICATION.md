@@ -297,3 +297,7 @@ Two one-off components remain because their function cannot be represented by a 
 2. **eCourts WebView** — required for eCourts/CAPTCHA flow. The app-owned loading/manual-recovery chrome uses shared tokens; the external webpage itself is not restyled.
 
 No other app-owned component requires one-off visual styling.
+
+
+## Final CI base workflow
+- [x] PR base workflow updated to run UI audit, Android lint, debug assemble, then APK upload.
