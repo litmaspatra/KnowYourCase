@@ -1,0 +1,39 @@
+<resources>
+    <color name="nt_primary">#315F8C</color>
+    <color name="nt_on_primary">#F8FBFF</color>
+    <color name="nt_primary_container">#D5E5F7</color>
+    <color name="nt_on_primary_container">#17324D</color>
+
+    <color name="nt_secondary">#6C5D45</color>
+    <color name="nt_on_secondary">#FFF9F0</color>
+    <color name="nt_secondary_container">#EFE3CF</color>
+    <color name="nt_on_secondary_container">#3D3325</color>
+
+    <color name="nt_surface">#F8FAFC</color>
+    <color name="nt_surface_variant">#EEF1F4</color>
+    <color name="nt_on_surface">#20242A</color>
+    <color name="nt_on_surface_variant">#4C535B</color>
+    <color name="nt_outline">#727981</color>
+    <color name="nt_outline_variant">#C8CDD2</color>
+
+    <color name="nt_success">#2F6B4F</color>
+    <color name="nt_on_success">#F6FFF9</color>
+    <color name="nt_success_container">#D7EBDD</color>
+    <color name="nt_on_success_container">#173C2B</color>
+
+    <color name="nt_warning">#8A5A15</color>
+    <color name="nt_on_warning">#FFF9EF</color>
+    <color name="nt_warning_container">#F4E2BE</color>
+    <color name="nt_on_warning_container">#4F3208</color>
+
+    <color name="nt_error">#A33A3A</color>
+    <color name="nt_on_error">#FFF8F7</color>
+    <color name="nt_error_container">#F7DADA</color>
+    <color name="nt_on_error_container">#5C1D1D</color>
+
+    <color name="nt_scrim">#66000000</color>
+    <color name="nt_scanner_scrim">#99000000</color>
+    <color name="nt_scanner_control">#CC182028</color>
+    <color name="nt_scanner_text">#F7FAFC</color>
+    <color name="nt_scanner_accent">#9AC7EA</color>
+</resources>

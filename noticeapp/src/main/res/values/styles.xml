@@ -1,0 +1,159 @@
+<resources>
+    <style name="Theme.NoticeTracker" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/nt_primary</item>
+        <item name="colorOnPrimary">@color/nt_on_primary</item>
+        <item name="colorPrimaryContainer">@color/nt_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/nt_on_primary_container</item>
+        <item name="colorSecondary">@color/nt_secondary</item>
+        <item name="colorOnSecondary">@color/nt_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/nt_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/nt_on_secondary_container</item>
+        <item name="colorSurface">@color/nt_surface</item>
+        <item name="colorSurfaceVariant">@color/nt_surface_variant</item>
+        <item name="colorOnSurface">@color/nt_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/nt_on_surface_variant</item>
+        <item name="colorOutline">@color/nt_outline</item>
+        <item name="colorOutlineVariant">@color/nt_outline_variant</item>
+        <item name="colorError">@color/nt_error</item>
+        <item name="colorOnError">@color/nt_on_error</item>
+        <item name="colorErrorContainer">@color/nt_error_container</item>
+        <item name="colorOnErrorContainer">@color/nt_on_error_container</item>
+        <item name="android:windowBackground">@color/nt_surface</item>
+        <item name="android:statusBarColor">@color/nt_surface</item>
+        <item name="android:navigationBarColor">@color/nt_surface</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+
+    <style name="Theme.NoticeTracker.Blue" parent="Theme.NoticeTracker">
+        <item name="colorPrimary">#2F6594</item>
+        <item name="colorOnPrimary">#F8FBFF</item>
+        <item name="colorPrimaryContainer">#D9E9F7</item>
+        <item name="colorOnPrimaryContainer">#18334C</item>
+        <item name="colorSecondary">#5C6D7D</item>
+        <item name="colorOnSecondary">#F8FBFF</item>
+        <item name="colorSecondaryContainer">#E2EBF2</item>
+        <item name="colorOnSecondaryContainer">#283A49</item>
+        <item name="colorSurface">#F8FAFC</item>
+        <item name="colorSurfaceVariant">#EDF3F8</item>
+        <item name="colorOnSurface">#20252A</item>
+        <item name="colorOnSurfaceVariant">#4A5662</item>
+        <item name="colorOutline">#71808E</item>
+        <item name="colorOutlineVariant">#C8D3DC</item>
+        <item name="colorError">@color/nt_error</item>
+        <item name="colorOnError">@color/nt_on_error</item>
+        <item name="colorErrorContainer">@color/nt_error_container</item>
+        <item name="colorOnErrorContainer">@color/nt_on_error_container</item>
+        <item name="android:windowBackground">#F8FAFC</item>
+        <item name="android:statusBarColor">#F8FAFC</item>
+        <item name="android:navigationBarColor">#F8FAFC</item>
+    </style>
+
+    <style name="Theme.NoticeTracker.Mono" parent="Theme.NoticeTracker">
+        <item name="colorPrimary">#4A5056</item>
+        <item name="colorOnPrimary">#FAFCFD</item>
+        <item name="colorPrimaryContainer">#E6E9EB</item>
+        <item name="colorOnPrimaryContainer">#262B30</item>
+        <item name="colorSecondary">#666C72</item>
+        <item name="colorOnSecondary">#FAFCFD</item>
+        <item name="colorSecondaryContainer">#ECEEEF</item>
+        <item name="colorOnSecondaryContainer">#30353A</item>
+        <item name="colorSurface">#F9FAFB</item>
+        <item name="colorSurfaceVariant">#EFF1F2</item>
+        <item name="colorOnSurface">#222629</item>
+        <item name="colorOnSurfaceVariant">#51565B</item>
+        <item name="colorOutline">#7B8084</item>
+        <item name="colorOutlineVariant">#CFD2D4</item>
+        <item name="colorError">@color/nt_error</item>
+        <item name="colorOnError">@color/nt_on_error</item>
+        <item name="colorErrorContainer">@color/nt_error_container</item>
+        <item name="colorOnErrorContainer">@color/nt_on_error_container</item>
+        <item name="android:windowBackground">#F9FAFB</item>
+        <item name="android:statusBarColor">#F9FAFB</item>
+        <item name="android:navigationBarColor">#F9FAFB</item>
+    </style>
+
+    <style name="Theme.NoticeTracker.BlackWhite" parent="Theme.NoticeTracker">
+        <item name="colorPrimary">#202225</item>
+        <item name="colorOnPrimary">#F8F8F8</item>
+        <item name="colorPrimaryContainer">#E8E8E8</item>
+        <item name="colorOnPrimaryContainer">#202225</item>
+        <item name="colorSecondary">#555A5F</item>
+        <item name="colorOnSecondary">#F8F8F8</item>
+        <item name="colorSecondaryContainer">#EEEEEE</item>
+        <item name="colorOnSecondaryContainer">#303438</item>
+        <item name="colorSurface">#F7F7F7</item>
+        <item name="colorSurfaceVariant">#EEEEEE</item>
+        <item name="colorOnSurface">#202225</item>
+        <item name="colorOnSurfaceVariant">#4C5054</item>
+        <item name="colorOutline">#777B7F</item>
+        <item name="colorOutlineVariant">#CCCCCC</item>
+        <item name="colorError">@color/nt_error</item>
+        <item name="colorOnError">@color/nt_on_error</item>
+        <item name="colorErrorContainer">@color/nt_error_container</item>
+        <item name="colorOnErrorContainer">@color/nt_on_error_container</item>
+        <item name="android:windowBackground">#F7F7F7</item>
+        <item name="android:statusBarColor">#F7F7F7</item>
+        <item name="android:navigationBarColor">#F7F7F7</item>
+    </style>
+
+    <style name="Theme.NoticeTracker.Midnight" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/nt_primary</item>
+        <item name="colorOnPrimary">@color/nt_on_primary</item>
+        <item name="colorPrimaryContainer">@color/nt_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/nt_on_primary_container</item>
+        <item name="colorSecondary">@color/nt_secondary</item>
+        <item name="colorOnSecondary">@color/nt_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/nt_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/nt_on_secondary_container</item>
+        <item name="colorSurface">@color/nt_surface</item>
+        <item name="colorSurfaceVariant">@color/nt_surface_variant</item>
+        <item name="colorOnSurface">@color/nt_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/nt_on_surface_variant</item>
+        <item name="colorOutline">@color/nt_outline</item>
+        <item name="colorOutlineVariant">@color/nt_outline_variant</item>
+        <item name="colorError">@color/nt_error</item>
+        <item name="colorOnError">@color/nt_on_error</item>
+        <item name="colorErrorContainer">@color/nt_error_container</item>
+        <item name="colorOnErrorContainer">@color/nt_on_error_container</item>
+        <item name="android:windowBackground">@color/nt_surface</item>
+        <item name="android:statusBarColor">@color/nt_surface</item>
+        <item name="android:navigationBarColor">@color/nt_surface</item>
+    </style>
+
+    <style name="Theme.NoticeTracker.Ember" parent="Theme.NoticeTracker">
+        <item name="colorPrimary">#8A5035</item>
+        <item name="colorOnPrimary">#FFF9F6</item>
+        <item name="colorPrimaryContainer">#F1DDD2</item>
+        <item name="colorOnPrimaryContainer">#512B19</item>
+        <item name="colorSecondary">#76614F</item>
+        <item name="colorOnSecondary">#FFF9F4</item>
+        <item name="colorSecondaryContainer">#EEE1D4</item>
+        <item name="colorOnSecondaryContainer">#413326</item>
+        <item name="colorSurface">#FAF8F5</item>
+        <item name="colorSurfaceVariant">#F1EBE5</item>
+        <item name="colorOnSurface">#29231E</item>
+        <item name="colorOnSurfaceVariant">#5A4D44</item>
+        <item name="colorOutline">#83776F</item>
+        <item name="colorOutlineVariant">#D4C7BD</item>
+        <item name="colorError">@color/nt_error</item>
+        <item name="colorOnError">@color/nt_on_error</item>
+        <item name="colorErrorContainer">@color/nt_error_container</item>
+        <item name="colorOnErrorContainer">@color/nt_on_error_container</item>
+        <item name="android:windowBackground">#FAF8F5</item>
+        <item name="android:statusBarColor">#FAF8F5</item>
+        <item name="android:navigationBarColor">#FAF8F5</item>
+    </style>
+
+    <style name="Theme.NoticeTracker.Transparent" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <style name="Theme.NoticeTracker.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/nt_surface</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_notice_pixel</item>
+        <item name="postSplashScreenTheme">@style/Theme.NoticeTracker</item>
+    </style>
+</resources>

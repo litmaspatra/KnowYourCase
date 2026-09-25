@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "KnowYourCase"
-include ':app'
+include ':app', ':noticeapp'
