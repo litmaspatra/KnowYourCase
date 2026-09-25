@@ -15,6 +15,8 @@ jobs:
           java-version: '17'
           cache: gradle
       - run: chmod +x gradlew
+      - name: UI design-system audit
+        run: python3 noticeapp/ui_audit.py
       - name: Lint Notice Tracker
         run: ./gradlew :noticeapp:lintDebug --stacktrace
       - name: Compile Notice Tracker
