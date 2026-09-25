@@ -1,7 +1,6 @@
 package com.knowyourcase.notice
 
 import android.Manifest
-import android.app.AlertDialog
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Typeface
@@ -14,6 +13,7 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -21,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.gson.Gson
@@ -209,8 +210,12 @@ class MainActivity : AppCompatActivity() {
                     alpha = .7f
                     setPadding(dp(8), 0, dp(8), dp(18))
                 })
-                addView(primaryButton("▦  Scan QR Code") {
+                addView(primaryButton("Scan QR code") {
                     scanner.launch(android.content.Intent(this@MainActivity, ModernScannerActivity::class.java))
+                }.apply {
+                    setIconResource(R.drawable.ic_action_scan)
+                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+                    iconPadding = dp(8)
                 })
                 addView(TextView(this@MainActivity).apply {
                     text = "or"
@@ -218,7 +223,11 @@ class MainActivity : AppCompatActivity() {
                     alpha = .55f
                     setPadding(0, dp(8), 0, dp(8))
                 })
-                addView(outlineButton("⌨  Enter CNR Manually") { showManualEntry() })
+                addView(outlineButton("Enter CNR manually") { showManualEntry() }.apply {
+                    setIconResource(R.drawable.ic_action_keyboard)
+                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+                    iconPadding = dp(8)
+                })
             })
         }, lp(bottom = 18))
 
@@ -408,7 +417,10 @@ class MainActivity : AppCompatActivity() {
                 null,
                 com.google.android.material.R.attr.materialButtonOutlinedStyle
             ).apply {
-                text = if (n.processServer.isBlank()) "Assign Process Server" else "Change Process Server"
+                text = if (n.processServer.isBlank()) "Assign process server" else "Change process server"
+                setIconResource(R.drawable.ic_action_assign)
+                iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+                iconPadding = dp(7)
                 isAllCaps = false
                 isSingleLine = true
                 maxLines = 1
@@ -428,6 +440,9 @@ class MainActivity : AppCompatActivity() {
 
                     addView(MaterialButton(this@MainActivity).apply {
                         text = "Served"
+                        setIconResource(R.drawable.ic_action_served)
+                        iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+                        iconPadding = dp(6)
                         isAllCaps = false
                         isSingleLine = true
                         maxLines = 1
@@ -444,6 +459,9 @@ class MainActivity : AppCompatActivity() {
                         com.google.android.material.R.attr.materialButtonOutlinedStyle
                     ).apply {
                         text = "Unserved"
+                        setIconResource(R.drawable.ic_action_unserved)
+                        iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+                        iconPadding = dp(6)
                         isAllCaps = false
                         isSingleLine = true
                         maxLines = 1
@@ -458,7 +476,7 @@ class MainActivity : AppCompatActivity() {
                     null,
                     com.google.android.material.R.attr.materialButtonOutlinedStyle
                 ).apply {
-                    text = "Move to Pending"
+                    text = "Move to pending"
                     isAllCaps = false
                     isSingleLine = true
                     maxLines = 1
@@ -478,7 +496,7 @@ class MainActivity : AppCompatActivity() {
                         topMargin = dp(12)
                     })
             } else if (n.fetchedState == "RETRY_REQUIRED") {
-                addView(outlineButton("Refresh Case Details") { retryNotice(n) }, lp(top = 10))
+                addView(outlineButton("Refresh case details") { retryNotice(n) }, lp(top = 10))
             }
         })
     }
@@ -494,21 +512,21 @@ class MainActivity : AppCompatActivity() {
         val scroll = ScrollView(this)
         val root = page("Settings", "Backend, appearance, fields and exports")
         root.addView(backendHealthCard(), lp(bottom = 10))
-        root.addView(settingCard("▤", "Backend Setup", BackendConfig.url(this)) { showBackendDialog() }, lp(bottom = 10))
-        root.addView(settingCard("☷", "Data & Fields", "Choose which fields appear and export") { showFieldsDialog() }, lp(bottom = 10))
-        root.addView(settingCard("◈", "Appearance", themeSummary()) { showThemeDialog() }, lp(bottom = 10))
-        root.addView(settingCard("⇩", "Export Data", "CSV spreadsheet or JSON backup") { showExportDialog() }, lp(bottom = 10))
-        root.addView(settingCard("◉", "Reminders", "10, 7, 3, 1 days and hearing morning") {
-            AlertDialog.Builder(this).setTitle("Reminders")
+        root.addView(settingCard(R.drawable.ic_ui_backend, "Backend setup", BackendConfig.url(this)) { showBackendDialog() }, lp(bottom = 12))
+        root.addView(settingCard(R.drawable.ic_ui_fields, "Data & fields", "Choose what appears in notice details and exports") { showFieldsDialog() }, lp(bottom = 12))
+        root.addView(settingCard(R.drawable.ic_ui_appearance, "Appearance", themeSummary()) { showThemeDialog() }, lp(bottom = 12))
+        root.addView(settingCard(R.drawable.ic_ui_export, "Export data", "CSV spreadsheet or JSON backup") { showExportDialog() }, lp(bottom = 12))
+        root.addView(settingCard(R.drawable.ic_ui_reminder, "Reminders", "10, 7, 3, 1 days and hearing morning") {
+            MaterialAlertDialogBuilder(this).setTitle("Reminders")
                 .setMessage("Pending notices are reminded before the next hearing. Marking Served or Unserved completes the notice and cancels pending reminders.")
-                .setPositiveButton("OK", null).show()
-        }, lp(bottom = 10))
-        root.addView(settingCard("♟", "Process Servers", processServerSummary()) { showProcessServerSettings() }, lp(bottom = 10))
-        root.addView(settingCard("ⓘ", "App Info", "Notice Tracker • Debug") {
-            AlertDialog.Builder(this).setTitle("Notice Tracker")
+                .setPositiveButton("Done", null).show()
+        }, lp(bottom = 12))
+        root.addView(settingCard(R.drawable.ic_ui_people, "Process servers", processServerSummary()) { showProcessServerSettings() }, lp(bottom = 12))
+        root.addView(settingCard(R.drawable.ic_ui_info, "App info", "Notice Tracker • Debug") {
+            MaterialAlertDialogBuilder(this).setTitle("Notice Tracker")
                 .setMessage("Standalone personal app. Default backend: " + BackendConfig.DEFAULT_URL)
-                .setPositiveButton("OK", null).show()
-        }, lp(bottom = 10))
+                .setPositiveButton("Done", null).show()
+        }, lp(bottom = 12))
         scroll.addView(root)
         content.addView(scroll)
     }
@@ -559,32 +577,52 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun settingCard(icon: String, title: String, subtitle: String, click: () -> Unit) = card().apply {
+    private fun settingCard(iconRes: Int, title: String, subtitle: String, click: () -> Unit) = card().apply {
         isClickable = true
+        isFocusable = true
         setOnClickListener { click() }
         addView(LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-            addView(TextView(this@MainActivity).apply {
-                text = icon
-                textSize = 23f
-                gravity = Gravity.CENTER
-            }, LinearLayout.LayoutParams(dp(42), dp(42)))
+            setPadding(dp(16), dp(15), dp(14), dp(15))
+
+            addView(FrameLayout(this@MainActivity).apply {
+                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_notice_info)
+                addView(ImageView(this@MainActivity).apply {
+                    setImageResource(iconRes)
+                    setColorFilter(themeColor(com.google.android.material.R.attr.colorOnSurface))
+                    contentDescription = null
+                    setPadding(dp(11), dp(11), dp(11), dp(11))
+                }, FrameLayout.LayoutParams(dp(44), dp(44), Gravity.CENTER))
+            }, LinearLayout.LayoutParams(dp(48), dp(48)).apply {
+                marginEnd = dp(14)
+            })
+
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 addView(TextView(this@MainActivity).apply {
                     text = title
                     textSize = 16f
                     setTypeface(typeface, Typeface.BOLD)
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
                 })
                 addView(TextView(this@MainActivity).apply {
                     text = subtitle
                     textSize = 13f
-                    alpha = .62f
+                    alpha = .65f
+                    maxLines = 2
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    setPadding(0, dp(3), 0, 0)
                 })
             }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            addView(TextView(this@MainActivity).apply { text = "›"; textSize = 28f; alpha = .55f })
+
+            addView(TextView(this@MainActivity).apply {
+                text = "›"
+                textSize = 26f
+                alpha = .45f
+                gravity = Gravity.CENTER
+            }, LinearLayout.LayoutParams(dp(28), dp(44)))
         })
     }
 
@@ -614,7 +652,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val existing = withContext(Dispatchers.IO) { db.notices().byCnr(cnr) }
             if (existing.isNotEmpty()) {
-                AlertDialog.Builder(this@MainActivity)
+                MaterialAlertDialogBuilder(this@MainActivity)
                     .setTitle("Case already tracked")
                     .setMessage("A notice for $cnr already exists. Add another notice for the same case?")
                     .setNegativeButton("Open existing") { _, _ -> showNotice(existing.first()) }
@@ -699,27 +737,27 @@ class MainActivity : AppCompatActivity() {
             else -> "Pending"
         })
 
-        val dialog = AlertDialog.Builder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle("Notice Details")
             .setView(ScrollView(this).apply { addView(box) })
             .setNegativeButton("Close", null)
             .create()
 
-        box.addView(primaryButton("Assign Process Server") {
+        box.addView(primaryButton("Assign process server") {
             dialog.dismiss()
             assignProcessServer(n)
         }, lp(top = 14))
         if (n.serviceStatus == "PENDING") {
-            box.addView(primaryButton("Mark Served") {
+            box.addView(primaryButton("Mark served") {
                 dialog.dismiss()
                 markServiceStatus(n, "SERVED")
             }, lp(top = 12))
-            box.addView(outlineButton("Mark Unserved") {
+            box.addView(outlineButton("Mark unserved") {
                 dialog.dismiss()
                 markServiceStatus(n, "UNSERVED")
             }, lp(top = 10))
         } else {
-            box.addView(outlineButton("Move to Pending") {
+            box.addView(outlineButton("Move to pending") {
                 dialog.dismiss()
                 markServiceStatus(n, "PENDING")
             }, lp(top = 12))
@@ -730,11 +768,11 @@ class MainActivity : AppCompatActivity() {
     private fun assignProcessServer(n: NoticeEntity) {
         val servers = processServers()
         if (servers.isEmpty()) {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("No Process Servers")
                 .setMessage("Add process-server names in Settings first.")
                 .setNegativeButton("Cancel", null)
-                .setPositiveButton("Open Settings") { _, _ ->
+                .setPositiveButton("Open settings") { _, _ ->
                     activeTab = TAB_SETTINGS
                     bottomNav.selectedItemId = TAB_SETTINGS
                     renderCurrentTab()
@@ -744,8 +782,8 @@ class MainActivity : AppCompatActivity() {
 
         val items = servers.toTypedArray()
         val current = servers.indexOf(n.processServer)
-        AlertDialog.Builder(this)
-            .setTitle("Assign Process Server")
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Assign process server")
             .setSingleChoiceItems(items, current) { dialog, which ->
                 saveNotice(n.copy(
                     processServer = servers[which],
@@ -794,9 +832,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Backend Setup")
+            .setTitle("Backend setup")
             .setView(wrap)
-            .setNeutralButton("Use Default") { _, _ ->
+            .setNeutralButton("Use default") { _, _ ->
                 BackendConfig.reset(this)
                 renderCurrentTab()
             }
@@ -824,7 +862,7 @@ class MainActivity : AppCompatActivity() {
     private fun showFieldsDialog() {
         val labels = FIELD_KEYS.map { it.second }.toTypedArray()
         val checked = FIELD_KEYS.map { prefs.getBoolean("field_" + it.first, true) }.toBooleanArray()
-        AlertDialog.Builder(this).setTitle("Data & Fields")
+        MaterialAlertDialogBuilder(this).setTitle("Data & fields")
             .setMultiChoiceItems(labels, checked) { _, which, value -> checked[which] = value }
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Save") { _, _ ->
@@ -865,7 +903,7 @@ class MainActivity : AppCompatActivity() {
         )
         val keys = arrayOf("system", "blue", "mono", "bw", "midnight", "ember", "light", "dark")
         val current = keys.indexOf(prefs.getString(KEY_THEME, "system")).coerceAtLeast(0)
-        AlertDialog.Builder(this).setTitle("Appearance")
+        MaterialAlertDialogBuilder(this).setTitle("Appearance")
             .setSingleChoiceItems(labels, current) { dialog, which ->
                 prefs.edit().putString(KEY_THEME, keys[which]).apply()
                 dialog.dismiss()
@@ -886,7 +924,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showExportDialog() {
-        AlertDialog.Builder(this).setTitle("Export Data")
+        MaterialAlertDialogBuilder(this).setTitle("Export data")
             .setItems(arrayOf("CSV spreadsheet", "JSON backup")) { _, which ->
                 val date = LocalDate.now().toString()
                 if (which == 0) exportCsv.launch("notice-tracker-" + date + ".csv")
@@ -973,6 +1011,8 @@ class MainActivity : AppCompatActivity() {
                         ).apply {
                             text = "Remove"
                             isAllCaps = false
+                            isSingleLine = true
+                            maxLines = 1
                             setOnClickListener {
                                 servers.removeAt(index)
                                 saveProcessServers(servers)
@@ -984,7 +1024,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            container.addView(primaryButton("Add Process Server") {
+            container.addView(primaryButton("Add process server") {
                 val field = modernTextField(
                     label = "Process server name",
                     value = "",
@@ -992,7 +1032,7 @@ class MainActivity : AppCompatActivity() {
                     inputTypeValue = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
                 )
                 com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                    .setTitle("Add Process Server")
+                    .setTitle("Add process server")
                     .setView(field.first)
                     .setNegativeButton("Cancel", null)
                     .setPositiveButton("Add") { _, _ ->
@@ -1008,8 +1048,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         renderList()
-        dialog = AlertDialog.Builder(this)
-            .setTitle("Process Servers")
+        dialog = MaterialAlertDialogBuilder(this)
+            .setTitle("Process servers")
             .setView(ScrollView(this).apply { addView(container) })
             .setPositiveButton("Done", null)
             .create()
