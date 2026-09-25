@@ -31,6 +31,7 @@ data class NoticeEntity(
 interface NoticeDao {
     @Insert suspend fun insert(notice: NoticeEntity): Long
     @Update suspend fun update(notice: NoticeEntity)
+    @Delete suspend fun delete(notice: NoticeEntity)
     @Query("SELECT * FROM notices ORDER BY CASE WHEN nextHearing='' THEN 1 ELSE 0 END, nextHearing ASC, scannedAt DESC")
     suspend fun all(): List<NoticeEntity>
     @Query("SELECT * FROM notices WHERE id=:id LIMIT 1")
