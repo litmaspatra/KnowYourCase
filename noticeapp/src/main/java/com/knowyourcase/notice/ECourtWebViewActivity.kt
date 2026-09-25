@@ -425,13 +425,53 @@ class ECourtWebViewActivity : AppCompatActivity() {
 
     private fun createBackgroundLookupView() {
         val root = FrameLayout(this).apply {
-            setBackgroundColor(android.graphics.Color.TRANSPARENT)
-            alpha = 0.01f
+            setBackgroundColor(android.graphics.Color.rgb(247, 249, 252))
         }
-        loadingView = View(this).apply { visibility = View.GONE }
-        root.addView(loadingView, FrameLayout.LayoutParams(1, 1))
-        webView = WebView(this).apply { alpha = 0.01f }
-        root.addView(webView, FrameLayout.LayoutParams(2, 2))
+
+        val status = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(48, 48, 48, 48)
+        }
+
+        status.addView(ProgressBar(this), LinearLayout.LayoutParams(64, 64).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+        })
+        status.addView(TextView(this).apply {
+            text = "Fetching case details…"
+            textSize = 20f
+            setTextColor(android.graphics.Color.rgb(28, 39, 52))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            gravity = Gravity.CENTER
+            setPadding(0, 28, 0, 8)
+        })
+        status.addView(TextView(this).apply {
+            text = cnrNumber
+            textSize = 14f
+            setTextColor(android.graphics.Color.rgb(90, 103, 118))
+            gravity = Gravity.CENTER
+        })
+        status.addView(TextView(this).apply {
+            text = "Checking eCourts securely. This usually takes only a moment."
+            textSize = 13f
+            setTextColor(android.graphics.Color.rgb(110, 122, 135))
+            gravity = Gravity.CENTER
+            setPadding(24, 18, 24, 0)
+        })
+
+        loadingView = status
+        root.addView(status, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+
+        webView = WebView(this).apply {
+            alpha = 0.01f
+            visibility = View.VISIBLE
+        }
+        root.addView(webView, FrameLayout.LayoutParams(2, 2).apply {
+            gravity = Gravity.BOTTOM or Gravity.END
+        })
         setContentView(root)
     }
 
