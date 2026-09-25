@@ -599,7 +599,7 @@ class MainActivity : AppCompatActivity() {
                 addView(MaterialButton(
                     this@MainActivity,
                     null,
-                    com.google.android.material.R.attr.materialButtonTextStyle
+                    com.google.android.material.R.attr.materialButtonOutlinedStyle
                 ).apply {
                     text = "Move to pending"
                     isAllCaps = false
@@ -731,7 +731,7 @@ class MainActivity : AppCompatActivity() {
         addView(MaterialButton(
             this@MainActivity,
             null,
-            com.google.android.material.R.attr.materialButtonTextStyle
+            com.google.android.material.R.attr.materialButtonOutlinedStyle
         ).apply {
             text = if (backendHealth == "CHECKING") "Checking" else "Check"
             isAllCaps = false
@@ -954,7 +954,7 @@ class MainActivity : AppCompatActivity() {
             box.addView(MaterialButton(
                 this,
                 null,
-                com.google.android.material.R.attr.materialButtonTextStyle
+                com.google.android.material.R.attr.materialButtonOutlinedStyle
             ).apply {
                 text = "Move to pending"
                 isAllCaps = false
