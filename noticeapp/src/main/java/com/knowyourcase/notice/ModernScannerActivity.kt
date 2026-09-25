@@ -42,7 +42,6 @@ import com.knowyourcase.notice.ui.roundedColor
 import com.knowyourcase.notice.ui.statePanel
 import java.util.concurrent.Executors
 
-@OptIn(ExperimentalGetImage::class)
 class ModernScannerActivity : AppCompatActivity() {
 
     companion object {
@@ -259,6 +258,7 @@ class ModernScannerActivity : AppCompatActivity() {
             setOnClickListener { action() }
         }
 
+    @ExperimentalGetImage
     private fun startCamera() {
         cameraProgress.visibility = View.VISIBLE
         val providerFuture = ProcessCameraProvider.getInstance(this)
