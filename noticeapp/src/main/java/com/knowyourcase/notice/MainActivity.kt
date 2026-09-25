@@ -196,122 +196,218 @@ class MainActivity : AppCompatActivity() {
         if (!::content.isInitialized) return
         content.removeAllViews()
         when (activeTab) {
-            TAB_TRACK -> renderTracker()
-            TAB_SETTINGS -> renderSettings()
-            else -> renderHome()
+            TAB_TRACK -> {
+                toolbar.title = "Notices"
+                toolbar.subtitle = "Pending work and completed service"
+                renderTracker()
+            }
+            TAB_SETTINGS -> {
+                toolbar.title = "Settings"
+                toolbar.subtitle = "Desk preferences"
+                renderSettings()
+            }
+            else -> {
+                toolbar.title = "Notice Tracker"
+                toolbar.subtitle = "Court process desk"
+                renderHome()
+            }
         }
     }
 
-    private fun page(title: String, subtitle: String? = null) = LinearLayout(this).apply {
+    private fun page() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(20), dp(22), dp(20), dp(16))
+        setPadding(dp(18), dp(14), dp(18), dp(24))
+    }
+
+    private fun heading(value: String, supporting: String? = null) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
         addView(TextView(this@MainActivity).apply {
-            text = title
-            textSize = 27f
+            text = value
+            textSize = 24f
             setTypeface(typeface, Typeface.BOLD)
         })
-        if (!subtitle.isNullOrBlank()) addView(TextView(this@MainActivity).apply {
-            text = subtitle
+        if (!supporting.isNullOrBlank()) addView(TextView(this@MainActivity).apply {
+            text = supporting
             textSize = 14f
-            alpha = .65f
-            setPadding(0, dp(3), 0, dp(16))
+            alpha = .66f
+            setPadding(0, dp(4), 0, 0)
         })
     }
 
     private fun renderHome() {
-        val scroll = ScrollView(this)
-        val root = page("Notice Tracker", "Scan. Track. Serve. Never miss a date.")
+        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val root = page()
 
-        root.addView(card().apply {
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER_HORIZONTAL
-                setPadding(dp(20), dp(24), dp(20), dp(22))
-                addView(ImageView(this@MainActivity).apply {
-                    setImageResource(R.drawable.ic_notice_pixel)
-                }, LinearLayout.LayoutParams(dp(78), dp(78)))
-                addView(TextView(this@MainActivity).apply {
-                    text = "Scan Court Notice"
-                    textSize = 21f
-                    setTypeface(typeface, Typeface.BOLD)
-                    gravity = Gravity.CENTER
-                    setPadding(0, dp(12), 0, dp(4))
-                })
-                addView(TextView(this@MainActivity).apply {
-                    text = "Scan the QR code. The notice is saved instantly and case details are fetched automatically."
-                    textSize = 14f
-                    gravity = Gravity.CENTER
-                    alpha = .7f
-                    setPadding(dp(8), 0, dp(8), dp(18))
-                })
-                addView(primaryButton("Scan QR code") {
-                    scanner.launch(android.content.Intent(this@MainActivity, ModernScannerActivity::class.java))
-                }.apply {
-                    setIconResource(R.drawable.ic_action_scan)
-                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-                    iconPadding = dp(8)
-                })
-                addView(TextView(this@MainActivity).apply {
-                    text = "or"
-                    gravity = Gravity.CENTER
-                    alpha = .55f
-                    setPadding(0, dp(8), 0, dp(8))
-                })
-                addView(outlineButton("Enter CNR manually") { showManualEntry() }.apply {
-                    setIconResource(R.drawable.ic_action_keyboard)
-                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-                    iconPadding = dp(8)
-                })
+        val pending = notices.filter { it.serviceStatus == "PENDING" }
+        val unassigned = pending.count { it.processServer.isBlank() }
+        val upcoming = pending.count {
+            runCatching {
+                val d = LocalDate.parse(it.nextHearing)
+                !d.isBefore(LocalDate.now()) && !d.isAfter(LocalDate.now().plusDays(7))
+            }.getOrDefault(false)
+        }
+
+        root.addView(heading(
+            "Today’s desk",
+            if (pending.isEmpty()) "No pending notices. Your desk is clear."
+            else pending.size.toString() + " notices still need action."
+        ), lp(bottom = 18))
+
+        root.addView(MaterialButton(this).apply {
+            text = "Scan court notice"
+            setIconResource(R.drawable.ic_action_scan)
+            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+            iconPadding = dp(10)
+            isAllCaps = false
+            textSize = 16f
+            minHeight = dp(58)
+            setOnClickListener {
+                scanner.launch(android.content.Intent(this@MainActivity, ModernScannerActivity::class.java))
+            }
+        }, lp(bottom = 10))
+
+        root.addView(MaterialButton(
+            this,
+            null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle
+        ).apply {
+            text = "Enter CNR manually"
+            setIconResource(R.drawable.ic_action_keyboard)
+            iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+            iconPadding = dp(9)
+            isAllCaps = false
+            minHeight = dp(50)
+            setOnClickListener { showManualEntry() }
+        }, lp(bottom = 22))
+
+        root.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(statBlock(pending.size.toString(), "Pending"), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
+            addView(statBlock(upcoming.toString(), "Due ≤ 7d"), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8) })
+            addView(statBlock(unassigned.toString(), "Unassigned"), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }, lp(bottom = 26))
+
+        root.addView(sectionTitle("Needs attention"))
+        val attention = pending.sortedBy {
+            runCatching { LocalDate.parse(it.nextHearing) }.getOrDefault(LocalDate.MAX)
+        }.filter { it.processServer.isBlank() || it.nextHearing.isNotBlank() }.take(3)
+
+        if (attention.isEmpty()) {
+            root.addView(emptyPanel("Nothing needs attention", "New or unassigned notices will appear here."), lp(bottom = 24))
+        } else {
+            attention.forEach { root.addView(compactNoticeRow(it), lp(bottom = 10)) }
+            root.addView(TextView(this).apply {
+                text = "View all notices"
+                textSize = 14f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(themeColor(com.google.android.material.R.attr.colorPrimary))
+                setPadding(dp(2), dp(4), dp(2), dp(20))
+                setOnClickListener {
+                    activeTab = TAB_TRACK
+                    bottomNav.selectedItemId = TAB_TRACK
+                }
             })
-        }, lp(bottom = 18))
-
-        val active = notices.count { it.fetchedState == "QUEUED" || it.fetchedState == "FETCHING" }
-        val failed = notices.count { it.fetchedState == "RETRY_REQUIRED" }
-        if (active > 0 || failed > 0) {
-            root.addView(sectionTitle("Background queue"))
-            root.addView(card().apply {
-                addView(TextView(this@MainActivity).apply {
-                    text = active.toString() + " queued/fetching • " + failed + " need refresh"
-                    textSize = 15f
-                    setPadding(dp(16), dp(16), dp(16), dp(16))
-                })
-            }, lp(bottom = 18))
         }
 
         root.addView(sectionTitle("Recent scans"))
-        if (notices.isEmpty()) root.addView(emptyState("No notices scanned yet"))
+        if (notices.isEmpty()) root.addView(emptyPanel("No notices yet", "Scan your first court notice to begin."))
         else notices.take(4).forEach { root.addView(recentRow(it), lp(bottom = 8)) }
 
         scroll.addView(root)
         content.addView(scroll)
     }
 
-    private fun recentRow(n: NoticeEntity) = card().apply {
+    private fun statBlock(value: String, label: String) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+        setPadding(dp(10), dp(14), dp(10), dp(14))
+        background = roundedSurface(com.google.android.material.R.attr.colorSurfaceVariant, 16)
+        addView(TextView(this@MainActivity).apply {
+            text = value
+            textSize = 22f
+            setTypeface(typeface, Typeface.BOLD)
+            gravity = Gravity.CENTER
+        })
+        addView(TextView(this@MainActivity).apply {
+            text = label
+            textSize = 12f
+            alpha = .64f
+            gravity = Gravity.CENTER
+            setPadding(0, dp(2), 0, 0)
+        })
+    }
+
+    private fun compactNoticeRow(n: NoticeEntity) = MaterialCardView(this).apply {
+        radius = dp(18).toFloat()
+        cardElevation = 0f
+        strokeWidth = dp(1)
+        strokeColor = themeColor(com.google.android.material.R.attr.colorOutlineVariant)
+        setCardBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface))
+        isClickable = true
+        setOnClickListener { showNotice(n) }
         addView(LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            addView(ImageView(this@MainActivity).apply {
-                setImageResource(if (n.fetchedState == "READY") R.drawable.ic_pixel_check else R.drawable.ic_pixel_sync)
-            }, LinearLayout.LayoutParams(dp(30), dp(30)))
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(10), 0, 0, 0)
-                addView(TextView(this@MainActivity).apply {
-                    text = n.cnr
-                    setTypeface(typeface, Typeface.BOLD)
-                    textSize = 14f
-                })
-                addView(TextView(this@MainActivity).apply {
-                    text = when (n.fetchedState) {
-                        "READY" -> "Added successfully"
-                        "RETRY_REQUIRED" -> "Needs refresh"
-                        "FETCHING" -> "Fetching case details…"
-                        else -> "Queued for processing…"
-                    }
-                    alpha = .65f
-                })
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(15), dp(13), dp(15), dp(13))
+            addView(TextView(this@MainActivity).apply {
+                text = n.caseNumber.ifBlank { n.cnr }
+                textSize = 15f
+                setTypeface(typeface, Typeface.BOLD)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
             })
+            addView(TextView(this@MainActivity).apply {
+                text = when {
+                    n.processServer.isBlank() && n.nextHearing.isNotBlank() -> "Unassigned  •  Hearing " + n.nextHearing
+                    n.processServer.isBlank() -> "Unassigned"
+                    n.nextHearing.isNotBlank() -> n.processServer + "  •  Hearing " + n.nextHearing
+                    else -> n.processServer
+                }
+                textSize = 13f
+                alpha = .66f
+                setPadding(0, dp(4), 0, 0)
+            })
+        })
+    }
+
+    private fun recentRow(n: NoticeEntity) = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(2), dp(10), dp(2), dp(10))
+        isClickable = true
+        setOnClickListener { showNotice(n) }
+
+        addView(ImageView(this@MainActivity).apply {
+            setImageResource(if (n.fetchedState == "READY") R.drawable.ic_pixel_check else R.drawable.ic_pixel_sync)
+            alpha = .78f
+        }, LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(12) })
+
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@MainActivity).apply {
+                text = n.caseNumber.ifBlank { n.cnr }
+                setTypeface(typeface, Typeface.BOLD)
+                textSize = 14f
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = when (n.fetchedState) {
+                    "READY" -> n.caseTitle.ifBlank { "Ready" }
+                    "RETRY_REQUIRED" -> "Needs refresh"
+                    "FETCHING" -> "Fetching case details…"
+                    else -> "Queued…"
+                }
+                textSize = 12f
+                alpha = .6f
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            })
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+        addView(TextView(this@MainActivity).apply {
+            text = "›"
+            textSize = 24f
+            alpha = .35f
         })
     }
 
