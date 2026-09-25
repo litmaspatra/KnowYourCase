@@ -1328,6 +1328,33 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private fun roundedSurface(attr: Int, radiusDp: Int): android.graphics.drawable.Drawable =
+        android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = dp(radiusDp).toFloat()
+            setColor(themeColor(attr))
+        }
+
+    private fun emptyPanel(title: String, supporting: String) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+        setPadding(dp(18), dp(26), dp(18), dp(26))
+        background = roundedSurface(com.google.android.material.R.attr.colorSurfaceVariant, 18)
+        addView(TextView(this@MainActivity).apply {
+            text = title
+            textSize = 16f
+            setTypeface(typeface, Typeface.BOLD)
+            gravity = Gravity.CENTER
+        })
+        addView(TextView(this@MainActivity).apply {
+            text = supporting
+            textSize = 13f
+            alpha = .62f
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(5), dp(8), 0)
+        })
+    }
+
     private fun modernTextField(
         label: String,
         value: String,
