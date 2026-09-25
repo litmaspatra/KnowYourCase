@@ -3,6 +3,8 @@ name: Build Notice Tracker Debug
 on:
   pull_request:
     branches: [ notice-tracker-ci-base ]
+  push:
+    branches: [ notice-tracker-debug ]
 
 jobs:
   build:
