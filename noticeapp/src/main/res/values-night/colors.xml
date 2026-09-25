@@ -32,4 +32,8 @@
     <color name="nt_on_error_container">#FFE0DE</color>
 
     <color name="nt_scrim">#99000000</color>
+    <color name="nt_scanner_scrim">#99000000</color>
+    <color name="nt_scanner_control">#CC182028</color>
+    <color name="nt_scanner_text">#F7FAFC</color>
+    <color name="nt_scanner_accent">#9AC7EA</color>
 </resources>
