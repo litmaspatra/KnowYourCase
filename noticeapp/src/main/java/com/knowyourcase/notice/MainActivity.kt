@@ -105,8 +105,11 @@ class MainActivity : AppCompatActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         buildShell()
         updateSystemBars()
-        requestNotificationPermission()
-        appRoot.post { showFirstRunIfNeeded() }
+        if (prefs.getBoolean(KEY_ONBOARDED, false)) {
+            requestNotificationPermission()
+        } else {
+            appRoot.post { showFirstRunIfNeeded() }
+        }
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { db.notices().recoverInterruptedFetches() }
             reloadAndRender()
@@ -1739,12 +1742,14 @@ class MainActivity : AppCompatActivity() {
         body.addView(primaryButton("Scan first notice", R.drawable.ic_nt_scan) {
             prefs.edit().putBoolean(KEY_ONBOARDED, true).apply()
             sheet.dismiss()
+            requestNotificationPermission()
             scanner.launch(android.content.Intent(this, ModernScannerActivity::class.java))
         }, lp(top = UiTokens.Space.LG))
 
         body.addView(outlineButton("Not now") {
             prefs.edit().putBoolean(KEY_ONBOARDED, true).apply()
             sheet.dismiss()
+            requestNotificationPermission()
         }, lp(top = UiTokens.Space.XS))
 
         sheet.setContentView(body)
