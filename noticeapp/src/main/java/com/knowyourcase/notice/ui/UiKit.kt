@@ -45,6 +45,13 @@ fun Context.roundedSurface(attr: Int, radiusDp: Int): GradientDrawable =
         setColor(themeColor(attr))
     }
 
+fun Context.roundedColor(colorRes: Int, radiusDp: Int): GradientDrawable =
+    GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        cornerRadius = dp(radiusDp).toFloat()
+        setColor(getColor(colorRes))
+    }
+
 fun Context.designCard(): MaterialCardView = MaterialCardView(this).apply {
     radius = dp(UiTokens.Radius.LARGE).toFloat()
     cardElevation = 0f
