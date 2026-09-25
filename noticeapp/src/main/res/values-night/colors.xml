@@ -1,0 +1,35 @@
+<resources>
+    <color name="nt_primary">#AFCDE9</color>
+    <color name="nt_on_primary">#15344E</color>
+    <color name="nt_primary_container">#294A66</color>
+    <color name="nt_on_primary_container">#DCEBF7</color>
+
+    <color name="nt_secondary">#D3C3A8</color>
+    <color name="nt_on_secondary">#3A3125</color>
+    <color name="nt_secondary_container">#4B4133</color>
+    <color name="nt_on_secondary_container">#F1E4D0</color>
+
+    <color name="nt_surface">#141A20</color>
+    <color name="nt_surface_variant">#222A31</color>
+    <color name="nt_on_surface">#EDF1F4</color>
+    <color name="nt_on_surface_variant">#C4CBD1</color>
+    <color name="nt_outline">#9098A0</color>
+    <color name="nt_outline_variant">#424B53</color>
+
+    <color name="nt_success">#9CCFAF</color>
+    <color name="nt_on_success">#123827</color>
+    <color name="nt_success_container">#28513C</color>
+    <color name="nt_on_success_container">#D8F2E1</color>
+
+    <color name="nt_warning">#E6BF72</color>
+    <color name="nt_on_warning">#452D06</color>
+    <color name="nt_warning_container">#654513</color>
+    <color name="nt_on_warning_container">#F9E8C2</color>
+
+    <color name="nt_error">#F0B1AE</color>
+    <color name="nt_on_error">#5A1919</color>
+    <color name="nt_error_container">#713232</color>
+    <color name="nt_on_error_container">#FFE0DE</color>
+
+    <color name="nt_scrim">#99000000</color>
+</resources>
