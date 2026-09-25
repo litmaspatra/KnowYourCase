@@ -1396,72 +1396,115 @@ class MainActivity : AppCompatActivity() {
         val servers = processServers().toMutableList()
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(6), dp(20), dp(8))
+            setPadding(
+                dp(UiTokens.Space.MD),
+                dp(UiTokens.Space.XS),
+                dp(UiTokens.Space.MD),
+                dp(UiTokens.Space.MD)
+            )
         }
 
         lateinit var dialog: AlertDialog
+
+        fun showAddDialog() {
+            val field = modernTextField(
+                label = "Process server name",
+                value = "",
+                hint = "Enter full name",
+                inputTypeValue = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            )
+            val addDialog = MaterialAlertDialogBuilder(this)
+                .setTitle("Add process server")
+                .setView(field.first)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Add", null)
+                .create()
+
+            addDialog.setOnShowListener {
+                val add = addDialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                add.isEnabled = false
+                field.second.addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                    override fun onTextChanged(value: CharSequence?, start: Int, before: Int, count: Int) {
+                        val name = value?.toString().orEmpty().trim()
+                        val duplicate = servers.any { it.equals(name, ignoreCase = true) }
+                        add.isEnabled = name.length >= 2 && !duplicate
+                        field.first.error = when {
+                            name.isBlank() -> null
+                            name.length < 2 -> "Enter at least 2 characters."
+                            duplicate -> "This process server is already listed."
+                            else -> null
+                        }
+                    }
+                    override fun afterTextChanged(s: Editable?) = Unit
+                })
+                add.setOnClickListener {
+                    val name = field.second.text?.toString().orEmpty().trim()
+                    if (name.length >= 2 && servers.none { it.equals(name, ignoreCase = true) }) {
+                        servers.add(name)
+                        saveProcessServers(servers)
+                        addDialog.dismiss()
+                        notifyUser("Process server added")
+                        renderList()
+                    }
+                }
+            }
+            addDialog.show()
+        }
+
+        fun confirmRemove(index: Int, name: String) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Remove process server?")
+                .setMessage("Remove " + name + " from the assignment list? Existing notices keep their current assignment.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Remove") { _, _ ->
+                    servers.removeAt(index)
+                    saveProcessServers(servers)
+                    notifyUser("Process server removed")
+                    renderList()
+                }
+                .show()
+        }
 
         fun renderList() {
             container.removeAllViews()
 
             if (servers.isEmpty()) {
-                container.addView(TextView(this).apply {
-                    text = "No process servers added yet."
-                    alpha = .65f
-                    setPadding(0, dp(8), 0, dp(12))
-                })
+                container.addView(
+                    statePanel(
+                        StateKind.EMPTY,
+                        "No process servers",
+                        "Add the people who can be assigned notice service.",
+                        R.drawable.ic_nt_people,
+                        "Add process server"
+                    ) { showAddDialog() },
+                    lp(bottom = UiTokens.Space.SM)
+                )
             } else {
                 servers.forEachIndexed { index, name ->
                     container.addView(LinearLayout(this).apply {
                         orientation = LinearLayout.HORIZONTAL
                         gravity = Gravity.CENTER_VERTICAL
-                        setPadding(0, dp(5), 0, dp(5))
+                        minimumHeight = dp(UiTokens.MIN_TOUCH)
+                        setPadding(0, dp(UiTokens.Space.XS), 0, dp(UiTokens.Space.XS))
                         addView(TextView(this@MainActivity).apply {
                             text = name
-                            textSize = 15f
-                            setTypeface(typeface, Typeface.BOLD)
-                        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-                        addView(MaterialButton(
-                            this@MainActivity,
-                            null,
-                            com.google.android.material.R.attr.materialButtonOutlinedStyle
-                        ).apply {
-                            text = "Remove"
-                            isAllCaps = false
-                            isSingleLine = true
+                            applyType(TextRole.BODY, true)
                             maxLines = 1
-                            setOnClickListener {
-                                servers.removeAt(index)
-                                saveProcessServers(servers)
-                                renderList()
-                                if (activeTab == TAB_SETTINGS) renderCurrentTab()
-                            }
+                            ellipsize = android.text.TextUtils.TruncateAt.END
+                        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+                        addView(outlineButton("Remove") {
+                            confirmRemove(index, name)
                         })
                     })
                 }
-            }
 
-            container.addView(primaryButton("Add process server") {
-                val field = modernTextField(
-                    label = "Process server name",
-                    value = "",
-                    hint = "Enter name",
-                    inputTypeValue = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+                container.addView(
+                    primaryButton("Add process server", R.drawable.ic_nt_assign) { showAddDialog() },
+                    lp(top = UiTokens.Space.SM)
                 )
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                    .setTitle("Add process server")
-                    .setView(field.first)
-                    .setNegativeButton("Cancel", null)
-                    .setPositiveButton("Add") { _, _ ->
-                        val name = field.second.text?.toString().orEmpty().trim()
-                        if (name.isNotBlank() && name !in servers) {
-                            servers.add(name)
-                            saveProcessServers(servers)
-                            renderList()
-                            if (activeTab == TAB_SETTINGS) renderCurrentTab()
-                        }
-                    }.show()
-            }, lp(top = 12))
+            }
         }
 
         renderList()
