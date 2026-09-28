@@ -23,6 +23,8 @@ data class NoticeEntity(
     val serviceStatus: String = "PENDING",
     val fetchedState: String = "FETCHING",
     val lastError: String = "",
+    val allottedAt: Long = 0,
+    val receivedAt: Long = 0,
     val scannedAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
@@ -43,7 +45,7 @@ interface NoticeDao {
     suspend fun recoverInterruptedFetches()
 }
 
-@Database(entities = [NoticeEntity::class], version = 4, exportSchema = false)
+@Database(entities = [NoticeEntity::class], version = 5, exportSchema = false)
 abstract class NoticeDatabase : RoomDatabase() {
     abstract fun notices(): NoticeDao
     companion object {
@@ -67,6 +69,16 @@ abstract class NoticeDatabase : RoomDatabase() {
             }
         }
 
+
+        private val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notices ADD COLUMN allottedAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE notices ADD COLUMN receivedAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE notices SET allottedAt = scannedAt WHERE processServer != ''")
+                db.execSQL("UPDATE notices SET receivedAt = updatedAt WHERE serviceStatus IN ('SERVED','UNSERVED')")
+            }
+        }
+
         @Volatile private var INSTANCE: NoticeDatabase? = null
         fun get(context: Context): NoticeDatabase =
             INSTANCE ?: synchronized(this) {
@@ -74,7 +86,7 @@ abstract class NoticeDatabase : RoomDatabase() {
                     context.applicationContext,
                     NoticeDatabase::class.java,
                     "notice-tracker.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { INSTANCE = it }
             }
     }
 }

@@ -48,6 +48,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class MainActivity : AppCompatActivity() {
     private val db by lazy { NoticeDatabase.get(this) }
@@ -59,6 +62,8 @@ class MainActivity : AppCompatActivity() {
     private var lookupNoticeId: Long = -1
     private var activeTab = TAB_HOME
     private var trackerFilter = "PENDING"
+    private var scanMode = SCAN_NONE
+    private var scanServer = ""
     private val prefs by lazy { getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
 
     private var backendHealth = "UNKNOWN"
@@ -66,7 +71,24 @@ class MainActivity : AppCompatActivity() {
 
     private val scanner = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
-            result.data?.getStringExtra(ModernScannerActivity.EXTRA_SCAN_RESULT)?.let(::handleCnrInput)
+            val raw = result.data?.getStringExtra(ModernScannerActivity.EXTRA_SCAN_RESULT).orEmpty()
+            when (scanMode) {
+                SCAN_ALLOT -> {
+                    val server = scanServer
+                    scanMode = SCAN_NONE
+                    scanServer = ""
+                    handleAllotScan(raw, server)
+                }
+                SCAN_RECEIVE -> {
+                    scanMode = SCAN_NONE
+                    scanServer = ""
+                    handleReceiveScan(raw)
+                }
+                else -> handleCnrInput(raw)
+            }
+        } else {
+            scanMode = SCAN_NONE
+            scanServer = ""
         }
     }
 
@@ -196,9 +218,10 @@ class MainActivity : AppCompatActivity() {
 
         bottomNav = BottomNavigationView(this).apply {
             menu.add(0, TAB_HOME, 0, "Desk").setIcon(R.drawable.ic_nt_desk)
-            menu.add(0, TAB_TRACK, 1, "Notices").setIcon(R.drawable.ic_nt_notices)
-            menu.add(0, TAB_SERVERS, 2, "Servers").setIcon(R.drawable.ic_nt_people)
-            menu.add(0, TAB_SETTINGS, 3, "Settings").setIcon(R.drawable.ic_nt_settings)
+            menu.add(0, TAB_SERVERS, 1, "Allot").setIcon(R.drawable.ic_nt_assign)
+            menu.add(0, TAB_RECEIVE, 2, "Receive").setIcon(R.drawable.ic_nt_served)
+            menu.add(0, TAB_TRACK, 3, "Notices").setIcon(R.drawable.ic_nt_notices)
+            menu.add(0, TAB_SETTINGS, 4, "Settings").setIcon(R.drawable.ic_nt_settings)
             selectedItemId = TAB_HOME
             labelVisibilityMode = BottomNavigationView.LABEL_VISIBILITY_LABELED
             setOnItemSelectedListener {
@@ -262,15 +285,20 @@ class MainActivity : AppCompatActivity() {
         toolbar.navigationIcon = null
         toolbar.setNavigationOnClickListener(null)
         when (activeTab) {
+            TAB_SERVERS -> {
+                toolbar.title = "Allot notices"
+                toolbar.subtitle = "Choose a process server, then scan"
+                renderServers()
+            }
+            TAB_RECEIVE -> {
+                toolbar.title = "Receive notices"
+                toolbar.subtitle = "Scan returned notices and close service"
+                renderReceive()
+            }
             TAB_TRACK -> {
                 toolbar.title = "Notices"
-                toolbar.subtitle = "Pending work and completed service"
+                toolbar.subtitle = "Pending and completed notice register"
                 renderTracker()
-            }
-            TAB_SERVERS -> {
-                toolbar.title = "Process servers"
-                toolbar.subtitle = "Assignment roster"
-                renderServers()
             }
             TAB_SETTINGS -> {
                 toolbar.title = "Settings"
@@ -343,14 +371,18 @@ class MainActivity : AppCompatActivity() {
         )
 
         root.addView(
-            primaryButton("Scan court notice", R.drawable.ic_nt_scan) {
-                scanner.launch(android.content.Intent(this@MainActivity, ModernScannerActivity::class.java))
+            primaryButton("Allot notices", R.drawable.ic_nt_assign) {
+                activeTab = TAB_SERVERS
+                bottomNav.selectedItemId = TAB_SERVERS
             }.apply { minHeight = dp(UiTokens.Size.PRIMARY_ACTION) },
             lp(bottom = UiTokens.Space.XS)
         )
 
         root.addView(
-            outlineButton("Enter CNR manually", R.drawable.ic_nt_keyboard) { showManualEntry() },
+            outlineButton("Receive returned notices", R.drawable.ic_nt_served) {
+                activeTab = TAB_RECEIVE
+                bottomNav.selectedItemId = TAB_RECEIVE
+            },
             lp(bottom = UiTokens.Space.LG)
         )
 
@@ -798,43 +830,37 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(
             heading(
-                "Process servers",
-                if (servers.isEmpty()) "Add the people who can be assigned notice service."
-                else servers.size.toString() + " people available for assignment."
+                "Allot notices",
+                if (servers.isEmpty()) "Add process servers first. Then open a name and scan notices directly into that person's allotment."
+                else "Open a process server, then scan each notice you are handing over."
             ),
             lp(bottom = UiTokens.Space.MD)
         )
 
         root.addView(
-            primaryButton("Add or manage servers", R.drawable.ic_nt_assign) {
-                showProcessServerSettings()
-            },
+            outlineButton("Manage process servers", R.drawable.ic_nt_people) { showProcessServerSettings() },
             lp(bottom = UiTokens.Space.LG)
         )
 
-        root.addView(sectionTitle("Assignment roster"))
         if (servers.isEmpty()) {
             root.addView(
                 statePanel(
                     StateKind.EMPTY,
-                    "No process servers",
-                    "Add your process-server names once, then assign them from any Pending notice.",
+                    "Add process servers first",
+                    "Once names are added, each person gets their own allotment screen.",
                     R.drawable.ic_nt_people,
                     "Add process server"
                 ) { showProcessServerSettings() }
             )
         } else {
+            root.addView(sectionTitle("Choose process server"))
             servers.forEach { name ->
-                val pendingCount = notices.count {
-                    it.serviceStatus == "PENDING" && it.processServer.equals(name, ignoreCase = true)
-                }
-                val completedCount = notices.count {
-                    it.serviceStatus != "PENDING" && it.processServer.equals(name, ignoreCase = true)
-                }
+                val assigned = notices.filter { it.processServer.equals(name, ignoreCase = true) }
+                val pending = assigned.count { it.serviceStatus == "PENDING" }
                 root.addView(designCard().apply {
                     isClickable = true
                     isFocusable = true
-                    setOnClickListener { showProcessServerSettings() }
+                    setOnClickListener { showServerAllotment(name) }
                     addView(LinearLayout(this@MainActivity).apply {
                         orientation = LinearLayout.HORIZONTAL
                         gravity = Gravity.CENTER_VERTICAL
@@ -865,12 +891,18 @@ class MainActivity : AppCompatActivity() {
                                 ellipsize = android.text.TextUtils.TruncateAt.END
                             })
                             addView(TextView(this@MainActivity).apply {
-                                text = pendingCount.toString() + " pending  •  " + completedCount + " completed"
+                                text = assigned.size.toString() + " allotted  •  " + pending + " pending"
                                 applyType(TextRole.LABEL)
                                 setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
                                 setPadding(0, dp(UiTokens.Space.XXS), 0, 0)
                             })
                         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                        addView(ImageView(this@MainActivity).apply {
+                            setImageResource(R.drawable.ic_nt_scan)
+                            setColorFilter(themeColor(com.google.android.material.R.attr.colorPrimary))
+                            contentDescription = "Open and scan for " + name
+                            setPadding(dp(UiTokens.Space.SM), dp(UiTokens.Space.SM), dp(UiTokens.Space.SM), dp(UiTokens.Space.SM))
+                        }, LinearLayout.LayoutParams(dp(UiTokens.MIN_TOUCH), dp(UiTokens.MIN_TOUCH)))
                     })
                 }, lp(bottom = UiTokens.Space.XS))
             }
@@ -878,6 +910,216 @@ class MainActivity : AppCompatActivity() {
 
         scroll.addView(root)
         content.addView(scroll)
+    }
+
+    private fun showServerAllotment(server: String) {
+        val sheet = BottomSheetDialog(this)
+        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(
+                dp(UiTokens.Space.MD), dp(UiTokens.Space.SM),
+                dp(UiTokens.Space.MD), dp(UiTokens.Space.LG)
+            )
+        }
+        val assigned = notices.filter { it.processServer.equals(server, ignoreCase = true) }
+        val pending = assigned.filter { it.serviceStatus == "PENDING" }
+
+        box.addView(heading(server, "Scan notices here to allot them automatically to this process server."), lp(bottom = UiTokens.Space.MD))
+        box.addView(primaryButton("Scan & allot notice", R.drawable.ic_nt_scan) {
+            sheet.dismiss()
+            launchAllotScan(server)
+        }, lp(bottom = UiTokens.Space.SM))
+
+        box.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(reportMetric(assigned.size, "Allotted") { sheet.dismiss(); showServerNoticeList(server, "ALL") }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(UiTokens.Space.XS) })
+            addView(reportMetric(pending.size, "Pending") { sheet.dismiss(); showServerNoticeList(server, "PENDING") }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }, lp(bottom = UiTokens.Space.LG))
+
+        box.addView(sectionTitle("Current pending notices"))
+        if (pending.isEmpty()) {
+            box.addView(statePanel(StateKind.EMPTY, "No pending notices", "New allotments will appear here.", R.drawable.ic_nt_empty))
+        } else {
+            pending.take(8).forEach { box.addView(reportNoticeRow(it), lp(bottom = UiTokens.Space.XS)) }
+        }
+
+        scroll.addView(box)
+        sheet.setContentView(scroll)
+        sheet.show()
+    }
+
+    private fun renderReceive() {
+        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val root = page()
+        val allotted = notices.count { it.processServer.isNotBlank() || it.allottedAt > 0L }
+        val received = notices.count { it.serviceStatus != "PENDING" && it.receivedAt > 0L }
+        val pending = notices.count { it.serviceStatus == "PENDING" }
+
+        root.addView(
+            heading("Receive returned notices", "Scan every notice returned by a process server. Choose Served or Unserved after the scan."),
+            lp(bottom = UiTokens.Space.MD)
+        )
+        root.addView(primaryButton("Scan received notice", R.drawable.ic_nt_scan) { launchReceiveScan() }.apply {
+            minHeight = dp(UiTokens.Size.PRIMARY_ACTION)
+        }, lp(bottom = UiTokens.Space.LG))
+
+        root.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(reportMetric(allotted, "Allotted") { showServerNoticeList("", "ALLOTTED") }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(UiTokens.Space.XS) })
+            addView(reportMetric(received, "Received") { showServerNoticeList("", "RECEIVED") }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(UiTokens.Space.XS) })
+            addView(reportMetric(pending, "Pending") { showServerNoticeList("", "PENDING") }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }, lp(bottom = UiTokens.Space.LG))
+
+        root.addView(sectionTitle("Process server report"))
+        val servers = processServers()
+        if (servers.isEmpty()) {
+            root.addView(statePanel(StateKind.EMPTY, "No process servers", "Add process servers from the Allot tab first.", R.drawable.ic_nt_people))
+        } else {
+            servers.forEach { server ->
+                val assigned = notices.filter { it.processServer.equals(server, ignoreCase = true) }
+                val rec = assigned.count { it.serviceStatus != "PENDING" && it.receivedAt > 0L }
+                val pend = assigned.count { it.serviceStatus == "PENDING" }
+                root.addView(serverReportCard(server, assigned.size, rec, pend), lp(bottom = UiTokens.Space.SM))
+            }
+        }
+
+        val unallotted = notices.filter { it.processServer.isBlank() && it.receivedAt > 0L }
+        if (unallotted.isNotEmpty()) {
+            root.addView(sectionTitle("Received without prior allotment"), lp(top = UiTokens.Space.MD))
+            root.addView(serverReportCard("Unallotted", 0, unallotted.size, 0), lp(bottom = UiTokens.Space.SM))
+        }
+
+        scroll.addView(root)
+        content.addView(scroll)
+    }
+
+    private fun serverReportCard(server: String, allotted: Int, received: Int, pending: Int) = designCard().apply {
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(UiTokens.Space.MD), dp(UiTokens.Space.SM), dp(UiTokens.Space.MD), dp(UiTokens.Space.MD))
+            addView(TextView(this@MainActivity).apply {
+                text = server
+                applyType(TextRole.BODY, true)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            })
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(UiTokens.Space.SM), 0, 0)
+                addView(reportMetric(allotted, "Allotted") { showServerNoticeList(server, "ALL") }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(UiTokens.Space.XS) })
+                addView(reportMetric(received, "Received") { showServerNoticeList(server, "RECEIVED") }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(UiTokens.Space.XS) })
+                addView(reportMetric(pending, "Pending") { showServerNoticeList(server, "PENDING") }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            })
+        })
+    }
+
+    private fun reportMetric(count: Int, label: String, click: () -> Unit) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+        minimumHeight = dp(UiTokens.MIN_TOUCH)
+        setPadding(dp(UiTokens.Space.XXS), dp(UiTokens.Space.XS), dp(UiTokens.Space.XXS), dp(UiTokens.Space.XS))
+        background = roundedSurface(com.google.android.material.R.attr.colorSurfaceVariant, UiTokens.Radius.MEDIUM)
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { click() }
+        addView(TextView(this@MainActivity).apply {
+            text = count.toString()
+            applyType(TextRole.TITLE, true)
+            gravity = Gravity.CENTER
+        })
+        addView(TextView(this@MainActivity).apply {
+            text = label
+            applyType(TextRole.CAPTION, true)
+            setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+            gravity = Gravity.CENTER
+            maxLines = 1
+        })
+    }
+
+    private fun showServerNoticeList(server: String, filter: String) {
+        val sheet = BottomSheetDialog(this)
+        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(UiTokens.Space.MD), dp(UiTokens.Space.SM), dp(UiTokens.Space.MD), dp(UiTokens.Space.LG))
+        }
+        val base = when {
+            server == "Unallotted" -> notices.filter { it.processServer.isBlank() && it.receivedAt > 0L }
+            server.isBlank() -> notices
+            else -> notices.filter { it.processServer.equals(server, ignoreCase = true) }
+        }
+        val shown = when (filter) {
+            "PENDING" -> base.filter { it.serviceStatus == "PENDING" }
+            "RECEIVED" -> base.filter { it.serviceStatus != "PENDING" && it.receivedAt > 0L }
+            "ALLOTTED" -> base.filter { it.processServer.isNotBlank() || it.allottedAt > 0L }
+            else -> base
+        }
+        val title = if (server.isBlank()) filter.lowercase().replaceFirstChar { it.uppercase() } + " notices" else server
+        box.addView(heading(title, shown.size.toString() + " notice" + if (shown.size == 1) "" else "s"), lp(bottom = UiTokens.Space.MD))
+        if (shown.isEmpty()) {
+            box.addView(statePanel(StateKind.EMPTY, "No notices", "Nothing matches this report yet.", R.drawable.ic_nt_empty))
+        } else {
+            shown.sortedByDescending { maxOf(it.receivedAt, it.allottedAt, it.scannedAt) }.forEach {
+                box.addView(reportNoticeRow(it), lp(bottom = UiTokens.Space.XS))
+            }
+        }
+        scroll.addView(box)
+        sheet.setContentView(scroll)
+        sheet.show()
+    }
+
+    private fun reportNoticeRow(n: NoticeEntity) = designCard().apply {
+        isClickable = true
+        setOnClickListener { showNotice(n) }
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(UiTokens.Space.MD), dp(UiTokens.Space.SM), dp(UiTokens.Space.MD), dp(UiTokens.Space.SM))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(TextView(this@MainActivity).apply {
+                    text = n.caseTitle.ifBlank { n.caseNumber.ifBlank { n.cnr } }
+                    applyType(TextRole.BODY, true)
+                    maxLines = 2
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                addView(statusChip(n))
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = "Allotted: " + formatStamp(n.allottedAt) + "  •  Received: " + formatStamp(n.receivedAt)
+                applyType(TextRole.CAPTION)
+                setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                setPadding(0, dp(UiTokens.Space.XS), 0, 0)
+            })
+            if (n.processServer.isNotBlank()) {
+                addView(TextView(this@MainActivity).apply {
+                    text = n.processServer
+                    applyType(TextRole.LABEL)
+                    setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                    setPadding(0, dp(UiTokens.Space.XXS), 0, 0)
+                })
+            }
+        })
+    }
+
+    private fun launchAllotScan(server: String) {
+        scanMode = SCAN_ALLOT
+        scanServer = server
+        scanner.launch(android.content.Intent(this, ModernScannerActivity::class.java))
+    }
+
+    private fun launchReceiveScan() {
+        scanMode = SCAN_RECEIVE
+        scanServer = ""
+        scanner.launch(android.content.Intent(this, ModernScannerActivity::class.java))
+    }
+
+    private fun formatStamp(value: Long): String {
+        if (value <= 0L) return "—"
+        return DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")
+            .withZone(ZoneId.systemDefault())
+            .format(Instant.ofEpochMilli(value))
     }
 
     private fun renderSettings() {
@@ -1097,38 +1339,135 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun handleCnrInput(raw: String) {
+    private fun parseCnr(raw: String): String? {
         val cleaned = raw.uppercase().replace(Regex("[^A-Z0-9]"), "")
-        val cnr = Regex("[A-Z]{4}[0-9]{12}").find(cleaned)?.value
+        return Regex("[A-Z]{4}[0-9]{12}").find(cleaned)?.value
+    }
+
+    private fun handleCnrInput(raw: String) {
+        val cnr = parseCnr(raw)
         if (cnr == null) {
             notifyUser("CNR must contain 4 letters followed by 12 digits.")
             return
         }
         lifecycleScope.launch {
-            val existing = withContext(Dispatchers.IO) { db.notices().byCnr(cnr) }
-            if (existing.isEmpty()) {
-                createNotice(cnr)
+            val existing = withContext(Dispatchers.IO) { db.notices().byCnr(cnr).firstOrNull() }
+            if (existing != null) showNotice(existing)
+            else notifyUser("Use Allot or Receive so the notice is recorded in the correct workflow.")
+        }
+    }
+
+    private fun handleAllotScan(raw: String, server: String) {
+        val cnr = parseCnr(raw)
+        if (cnr == null || server.isBlank()) {
+            notifyUser("Could not read a valid CNR from this notice.")
+            return
+        }
+        val now = System.currentTimeMillis()
+        lifecycleScope.launch {
+            val existing = withContext(Dispatchers.IO) { db.notices().byCnr(cnr).firstOrNull() }
+            if (existing != null && existing.serviceStatus != "PENDING") {
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle("Notice already completed")
+                    .setMessage("This notice has already been received as " + if (existing.serviceStatus == "UNSERVED") "Unserved." else "Served.")
+                    .setNegativeButton("Close", null)
+                    .setPositiveButton("Open") { _, _ -> showNotice(existing) }
+                    .show()
                 return@launch
             }
 
-            val notice = existing.first()
-            if (notice.serviceStatus == "PENDING") {
-                MaterialAlertDialogBuilder(this@MainActivity)
-                    .setTitle("Returned notice received?")
-                    .setMessage("This CNR is already Pending. If you are scanning the returned served notice, mark it Served and move it to Completed.")
-                    .setNegativeButton("Cancel", null)
-                    .setNeutralButton("Open notice") { _, _ -> showNotice(notice) }
-                    .setPositiveButton("Mark Served") { _, _ -> markServiceStatus(notice, "SERVED") }
-                    .show()
+            val notice = if (existing == null) {
+                NoticeEntity(
+                    cnr = cnr,
+                    processServer = server,
+                    serviceStatus = "PENDING",
+                    fetchedState = "QUEUED",
+                    allottedAt = now,
+                    scannedAt = now,
+                    updatedAt = now
+                )
             } else {
-                val completedAs = if (notice.serviceStatus == "UNSERVED") "Unserved" else "Served"
-                MaterialAlertDialogBuilder(this@MainActivity)
-                    .setTitle("Notice already completed")
-                    .setMessage("This notice is already $completedAs.")
-                    .setNegativeButton("Close", null)
-                    .setPositiveButton("Open notice") { _, _ -> showNotice(notice) }
-                    .show()
+                existing.copy(
+                    processServer = server,
+                    allottedAt = if (existing.allottedAt > 0L) existing.allottedAt else now,
+                    updatedAt = now
+                )
             }
+
+            if (existing == null) {
+                withContext(Dispatchers.IO) { db.notices().insert(notice) }
+            } else {
+                withContext(Dispatchers.IO) { db.notices().update(notice) }
+                ReminderWorker.reschedule(this@MainActivity, notice)
+            }
+            notifyUser("Notice allotted to " + server)
+            reloadAndRender()
+            pumpQueue()
+        }
+    }
+
+    private fun handleReceiveScan(raw: String) {
+        val cnr = parseCnr(raw)
+        if (cnr == null) {
+            notifyUser("Could not read a valid CNR from this returned notice.")
+            return
+        }
+        lifecycleScope.launch {
+            val existing = withContext(Dispatchers.IO) { db.notices().byCnr(cnr).firstOrNull() }
+            if (existing != null && existing.receivedAt > 0L && existing.serviceStatus != "PENDING") {
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle("Already received")
+                    .setMessage("This notice was already received on " + formatStamp(existing.receivedAt) + ".")
+                    .setNegativeButton("Close", null)
+                    .setPositiveButton("Open") { _, _ -> showNotice(existing) }
+                    .show()
+                return@launch
+            }
+            showReceiveStatusDialog(cnr, existing)
+        }
+    }
+
+    private fun showReceiveStatusDialog(cnr: String, existing: NoticeEntity?) {
+        val serverLine = existing?.processServer?.takeIf { it.isNotBlank() }?.let { "\nAllotted to: " + it }.orEmpty()
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Returned notice received")
+            .setMessage("CNR: " + cnr + serverLine + "\n\nHow was service completed?")
+            .setNegativeButton("Cancel", null)
+            .setNeutralButton("Unserved") { _, _ -> completeReceivedNotice(cnr, existing, "UNSERVED") }
+            .setPositiveButton("Served") { _, _ -> completeReceivedNotice(cnr, existing, "SERVED") }
+            .show()
+    }
+
+    private fun completeReceivedNotice(cnr: String, existing: NoticeEntity?, status: String) {
+        val now = System.currentTimeMillis()
+        lifecycleScope.launch {
+            val notice = if (existing == null) {
+                NoticeEntity(
+                    cnr = cnr,
+                    serviceStatus = status,
+                    fetchedState = "QUEUED",
+                    receivedAt = now,
+                    scannedAt = now,
+                    updatedAt = now
+                )
+            } else {
+                existing.copy(
+                    serviceStatus = status,
+                    receivedAt = now,
+                    updatedAt = now
+                )
+            }
+            if (existing == null) {
+                withContext(Dispatchers.IO) { db.notices().insert(notice) }
+            } else {
+                withContext(Dispatchers.IO) { db.notices().update(notice) }
+                ReminderWorker.cancel(this@MainActivity, notice.id)
+            }
+            notifyUser("Received notice marked " + if (status == "UNSERVED") "Unserved" else "Served")
+            activeTab = TAB_RECEIVE
+            bottomNav.selectedItemId = TAB_RECEIVE
+            reloadAndRender()
+            pumpQueue()
         }
     }
 
@@ -1363,9 +1702,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun markServiceStatus(n: NoticeEntity, status: String) {
+        val now = System.currentTimeMillis()
         val updated = n.copy(
             serviceStatus = status,
-            updatedAt = System.currentTimeMillis()
+            receivedAt = if (status == "PENDING") 0L else if (n.receivedAt > 0L) n.receivedAt else now,
+            updatedAt = now
         )
         val message = when (status) {
             "SERVED" -> "Notice marked Served"
@@ -1658,11 +1999,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildCsv(data: List<NoticeEntity>): String {
         fun q(v: String) = "\\\"" + v.replace("\\\"", "\\\"\\\"").replace("\\n", " ") + "\\\""
-        val header = "CNR,Case Number,Case Title,Court,Petitioner,Respondent,Advocates,Next Hearing,Stage,Process Server,Service,Fetch State"
+        val header = "CNR,Case Number,Case Title,Court,Petitioner,Respondent,Advocates,Next Hearing,Stage,Process Server,Allotted On,Received On,Service,Fetch State"
         val rows = data.map { n ->
             listOf(n.cnr,n.caseNumber,n.caseTitle,n.courtName,n.petitioner,n.respondent,
                 listOf(n.petitionerAdvocate,n.respondentAdvocate).filter { it.isNotBlank() }.joinToString(" | "),
-                n.nextHearing,n.caseStage,n.processServer,
+                n.nextHearing,n.caseStage,n.processServer,formatStamp(n.allottedAt),formatStamp(n.receivedAt),
                 when (n.serviceStatus) {
                     "SERVED" -> "Served"
                     "UNSERVED" -> "Unserved"
@@ -2029,9 +2370,9 @@ class MainActivity : AppCompatActivity() {
             })
         }
 
-        step("1", "Scan", "Read the eCourts QR code or enter the CNR manually.")
-        step("2", "Assign", "Choose the process server responsible for service.")
-        step("3", "Scan return", "Scan the same Pending CNR again when the served notice comes back; confirm it to move the notice to Completed.")
+        step("1", "Add servers", "Add your process-server names once from the Allot tab.")
+        step("2", "Allot", "Open a process server and scan notices there so assignment is automatic.")
+        step("3", "Receive", "Use the third tab to scan returned notices and mark each Served or Unserved.")
 
         body.addView(primaryButton("Scan first notice", R.drawable.ic_nt_scan) {
             prefs.edit().putBoolean(KEY_ONBOARDED, true).apply()
@@ -2063,9 +2404,13 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAB_HOME = 1
-        private const val TAB_TRACK = 2
-        private const val TAB_SERVERS = 3
-        private const val TAB_SETTINGS = 4
+        private const val TAB_SERVERS = 2
+        private const val TAB_RECEIVE = 3
+        private const val TAB_TRACK = 4
+        private const val TAB_SETTINGS = 5
+        private const val SCAN_NONE = 0
+        private const val SCAN_ALLOT = 1
+        private const val SCAN_RECEIVE = 2
         private const val PREFS = "notice_tracker_settings"
         private const val KEY_THEME = "theme"
         private const val KEY_PROCESS_SERVERS = "process_servers"
