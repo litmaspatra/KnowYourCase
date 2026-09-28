@@ -23,8 +23,8 @@ data class NoticeEntity(
     val serviceStatus: String = "PENDING",
     val fetchedState: String = "FETCHING",
     val lastError: String = "",
-    val allottedAt: Long = 0,
-    val receivedAt: Long = 0,
+    @ColumnInfo(defaultValue = "0") val allottedAt: Long = 0,
+    @ColumnInfo(defaultValue = "0") val receivedAt: Long = 0,
     val scannedAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
@@ -68,7 +68,6 @@ abstract class NoticeDatabase : RoomDatabase() {
                 db.execSQL("UPDATE notices SET serviceStatus = 'PENDING' WHERE serviceStatus = 'NOT_SERVED'")
             }
         }
-
 
         private val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
