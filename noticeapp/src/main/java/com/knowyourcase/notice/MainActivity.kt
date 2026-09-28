@@ -197,7 +197,8 @@ class MainActivity : AppCompatActivity() {
         bottomNav = BottomNavigationView(this).apply {
             menu.add(0, TAB_HOME, 0, "Desk").setIcon(R.drawable.ic_nt_desk)
             menu.add(0, TAB_TRACK, 1, "Notices").setIcon(R.drawable.ic_nt_notices)
-            menu.add(0, TAB_SETTINGS, 2, "Settings").setIcon(R.drawable.ic_nt_settings)
+            menu.add(0, TAB_SERVERS, 2, "Servers").setIcon(R.drawable.ic_nt_people)
+            menu.add(0, TAB_SETTINGS, 3, "Settings").setIcon(R.drawable.ic_nt_settings)
             selectedItemId = TAB_HOME
             labelVisibilityMode = BottomNavigationView.LABEL_VISIBILITY_LABELED
             setOnItemSelectedListener {
@@ -258,26 +259,25 @@ class MainActivity : AppCompatActivity() {
     private fun renderCurrentTab() {
         if (!::content.isInitialized) return
         content.removeAllViews()
+        toolbar.navigationIcon = null
         toolbar.setNavigationOnClickListener(null)
         when (activeTab) {
             TAB_TRACK -> {
-                toolbar.setNavigationIcon(R.drawable.ic_nt_back)
-                toolbar.navigationContentDescription = "Back to Desk"
-                toolbar.setNavigationOnClickListener { navigateToDesk() }
                 toolbar.title = "Notices"
                 toolbar.subtitle = "Pending work and completed service"
                 renderTracker()
             }
+            TAB_SERVERS -> {
+                toolbar.title = "Process servers"
+                toolbar.subtitle = "Assignment roster"
+                renderServers()
+            }
             TAB_SETTINGS -> {
-                toolbar.setNavigationIcon(R.drawable.ic_nt_back)
-                toolbar.navigationContentDescription = "Back to Desk"
-                toolbar.setNavigationOnClickListener { navigateToDesk() }
                 toolbar.title = "Settings"
                 toolbar.subtitle = "Desk preferences"
                 renderSettings()
             }
             else -> {
-                toolbar.navigationIcon = null
                 toolbar.title = "Notice Tracker"
                 toolbar.subtitle = "Court process desk"
                 renderHome()
@@ -791,6 +791,95 @@ class MainActivity : AppCompatActivity() {
         else -> "Pending"
     }
 
+    private fun renderServers() {
+        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val root = page()
+        val servers = processServers()
+
+        root.addView(
+            heading(
+                "Process servers",
+                if (servers.isEmpty()) "Add the people who can be assigned notice service."
+                else servers.size.toString() + " people available for assignment."
+            ),
+            lp(bottom = UiTokens.Space.MD)
+        )
+
+        root.addView(
+            primaryButton("Add or manage servers", R.drawable.ic_nt_assign) {
+                showProcessServerSettings()
+            },
+            lp(bottom = UiTokens.Space.LG)
+        )
+
+        root.addView(sectionTitle("Assignment roster"))
+        if (servers.isEmpty()) {
+            root.addView(
+                statePanel(
+                    StateKind.EMPTY,
+                    "No process servers",
+                    "Add your process-server names once, then assign them from any Pending notice.",
+                    R.drawable.ic_nt_people,
+                    "Add process server"
+                ) { showProcessServerSettings() }
+            )
+        } else {
+            servers.forEach { name ->
+                val pendingCount = notices.count {
+                    it.serviceStatus == "PENDING" && it.processServer.equals(name, ignoreCase = true)
+                }
+                val completedCount = notices.count {
+                    it.serviceStatus != "PENDING" && it.processServer.equals(name, ignoreCase = true)
+                }
+                root.addView(designCard().apply {
+                    isClickable = true
+                    isFocusable = true
+                    setOnClickListener { showProcessServerSettings() }
+                    addView(LinearLayout(this@MainActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        setPadding(
+                            dp(UiTokens.Space.MD), dp(UiTokens.Space.SM),
+                            dp(UiTokens.Space.MD), dp(UiTokens.Space.SM)
+                        )
+                        addView(ImageView(this@MainActivity).apply {
+                            setImageResource(R.drawable.ic_nt_people)
+                            setColorFilter(themeColor(com.google.android.material.R.attr.colorPrimary))
+                            background = roundedSurface(
+                                com.google.android.material.R.attr.colorPrimaryContainer,
+                                UiTokens.Radius.MEDIUM
+                            )
+                            setPadding(
+                                dp(UiTokens.Space.SM), dp(UiTokens.Space.SM),
+                                dp(UiTokens.Space.SM), dp(UiTokens.Space.SM)
+                            )
+                        }, LinearLayout.LayoutParams(dp(UiTokens.MIN_TOUCH), dp(UiTokens.MIN_TOUCH)).apply {
+                            marginEnd = dp(UiTokens.Space.SM)
+                        })
+                        addView(LinearLayout(this@MainActivity).apply {
+                            orientation = LinearLayout.VERTICAL
+                            addView(TextView(this@MainActivity).apply {
+                                text = name
+                                applyType(TextRole.BODY, true)
+                                maxLines = 1
+                                ellipsize = android.text.TextUtils.TruncateAt.END
+                            })
+                            addView(TextView(this@MainActivity).apply {
+                                text = pendingCount.toString() + " pending  •  " + completedCount + " completed"
+                                applyType(TextRole.LABEL)
+                                setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                                setPadding(0, dp(UiTokens.Space.XXS), 0, 0)
+                            })
+                        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                    })
+                }, lp(bottom = UiTokens.Space.XS))
+            }
+        }
+
+        scroll.addView(root)
+        content.addView(scroll)
+    }
+
     private fun renderSettings() {
         val scroll = ScrollView(this).apply { isFillViewport = true }
         val root = page()
@@ -805,7 +894,6 @@ class MainActivity : AppCompatActivity() {
         root.addView(settingsRow(R.drawable.ic_nt_backend, "Backend", BackendConfig.url(this)) { showBackendDialog() }, lp(bottom = UiTokens.Space.XS))
 
         root.addView(sectionTitle("Workflow"), lp(top = UiTokens.Space.LG))
-        root.addView(settingsRow(R.drawable.ic_nt_people, "Process servers", processServerSummary()) { showProcessServerSettings() }, lp(bottom = UiTokens.Space.XS))
         root.addView(settingsRow(R.drawable.ic_nt_reminder, "Reminders", reminderSummary()) {
             showReminderSettings()
         })
@@ -1018,14 +1106,29 @@ class MainActivity : AppCompatActivity() {
         }
         lifecycleScope.launch {
             val existing = withContext(Dispatchers.IO) { db.notices().byCnr(cnr) }
-            if (existing.isNotEmpty()) {
+            if (existing.isEmpty()) {
+                createNotice(cnr)
+                return@launch
+            }
+
+            val notice = existing.first()
+            if (notice.serviceStatus == "PENDING") {
                 MaterialAlertDialogBuilder(this@MainActivity)
-                    .setTitle("Case already tracked")
-                    .setMessage("A notice for $cnr already exists. Add another notice for the same case?")
-                    .setNegativeButton("Open existing") { _, _ -> showNotice(existing.first()) }
-                    .setPositiveButton("Add another") { _, _ -> createNotice(cnr) }
+                    .setTitle("Returned notice received?")
+                    .setMessage("This CNR is already Pending. If you are scanning the returned served notice, mark it Served and move it to Completed.")
+                    .setNegativeButton("Cancel", null)
+                    .setNeutralButton("Open notice") { _, _ -> showNotice(notice) }
+                    .setPositiveButton("Mark Served") { _, _ -> markServiceStatus(notice, "SERVED") }
                     .show()
-            } else createNotice(cnr)
+            } else {
+                val completedAs = if (notice.serviceStatus == "UNSERVED") "Unserved" else "Served"
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle("Notice already completed")
+                    .setMessage("This notice is already $completedAs.")
+                    .setNegativeButton("Close", null)
+                    .setPositiveButton("Open notice") { _, _ -> showNotice(notice) }
+                    .show()
+            }
         }
     }
 
@@ -1231,11 +1334,11 @@ class MainActivity : AppCompatActivity() {
         if (servers.isEmpty()) {
             MaterialAlertDialogBuilder(this)
                 .setTitle("No Process Servers")
-                .setMessage("Add process-server names in Settings first.")
+                .setMessage("Add process-server names from the Servers tab first.")
                 .setNegativeButton("Cancel", null)
-                .setPositiveButton("Open settings") { _, _ ->
-                    activeTab = TAB_SETTINGS
-                    bottomNav.selectedItemId = TAB_SETTINGS
+                .setPositiveButton("Open servers") { _, _ ->
+                    activeTab = TAB_SERVERS
+                    bottomNav.selectedItemId = TAB_SERVERS
                     renderCurrentTab()
                 }.show()
             return
@@ -1928,7 +2031,7 @@ class MainActivity : AppCompatActivity() {
 
         step("1", "Scan", "Read the eCourts QR code or enter the CNR manually.")
         step("2", "Assign", "Choose the process server responsible for service.")
-        step("3", "Complete", "Served and Unserved both complete the notice; Pending means no action yet.")
+        step("3", "Scan return", "Scan the same Pending CNR again when the served notice comes back; confirm it to move the notice to Completed.")
 
         body.addView(primaryButton("Scan first notice", R.drawable.ic_nt_scan) {
             prefs.edit().putBoolean(KEY_ONBOARDED, true).apply()
@@ -1961,7 +2064,8 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val TAB_HOME = 1
         private const val TAB_TRACK = 2
-        private const val TAB_SETTINGS = 3
+        private const val TAB_SERVERS = 3
+        private const val TAB_SETTINGS = 4
         private const val PREFS = "notice_tracker_settings"
         private const val KEY_THEME = "theme"
         private const val KEY_PROCESS_SERVERS = "process_servers"
