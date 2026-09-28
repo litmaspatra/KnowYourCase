@@ -23,6 +23,9 @@ jobs:
       - name: Apply process-server allotment and receive workflow
         run: python3 .github/scripts/apply_process_server_workflow.py
 
+      - name: Final process-workflow hardening
+        run: python3 .github/scripts/finalize_process_workflow.py
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -58,5 +61,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add noticeapp/src/main/java/com/knowyourcase/notice/MainActivity.kt noticeapp/src/main/java/com/knowyourcase/notice/NoticeDatabase.kt noticeapp/build.gradle
-          git commit -m "Add process-server allotment and receive workflow"
+          git commit -m "Finalize process-server allotment and receive workflow"
           git push origin HEAD:notice-tracker-debug
