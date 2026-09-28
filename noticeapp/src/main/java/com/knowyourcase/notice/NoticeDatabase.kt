@@ -25,6 +25,8 @@ data class NoticeEntity(
     val lastError: String = "",
     @ColumnInfo(defaultValue = "0") val allottedAt: Long = 0,
     @ColumnInfo(defaultValue = "0") val receivedAt: Long = 0,
+    @ColumnInfo(defaultValue = "''") val archiveText: String = "",
+    @ColumnInfo(defaultValue = "0") val fetchPriority: Int = 0,
     val scannedAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
@@ -41,17 +43,16 @@ interface NoticeDao {
     @Query("SELECT * FROM notices WHERE cnr=:cnr ORDER BY scannedAt DESC")
     suspend fun byCnr(cnr: String): List<NoticeEntity>
 
-    @Query("UPDATE notices SET fetchedState = 'QUEUED' WHERE fetchedState = 'FETCHING'")
+    @Query("UPDATE notices SET fetchedState = 'QUEUED' WHERE fetchedState IN ('FETCHING','RESTARTING')")
     suspend fun recoverInterruptedFetches()
 }
 
-@Database(entities = [NoticeEntity::class], version = 5, exportSchema = false)
+@Database(entities = [NoticeEntity::class], version = 6, exportSchema = false)
 abstract class NoticeDatabase : RoomDatabase() {
     abstract fun notices(): NoticeDao
     companion object {
         private val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Older debug build normalized NOT_SERVED to PENDING.
                 db.execSQL("UPDATE notices SET serviceStatus = 'PENDING' WHERE serviceStatus = 'NOT_SERVED'")
             }
         }
@@ -64,7 +65,6 @@ abstract class NoticeDatabase : RoomDatabase() {
 
         private val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Two-state debug builds used NOT_SERVED for all incomplete work.
                 db.execSQL("UPDATE notices SET serviceStatus = 'PENDING' WHERE serviceStatus = 'NOT_SERVED'")
             }
         }
@@ -78,6 +78,14 @@ abstract class NoticeDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notices ADD COLUMN archiveText TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE notices ADD COLUMN fetchPriority INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE notices SET fetchedState = 'QUEUED' WHERE fetchedState IN ('FETCHING','RESTARTING')")
+            }
+        }
+
         @Volatile private var INSTANCE: NoticeDatabase? = null
         fun get(context: Context): NoticeDatabase =
             INSTANCE ?: synchronized(this) {
@@ -85,7 +93,13 @@ abstract class NoticeDatabase : RoomDatabase() {
                     context.applicationContext,
                     NoticeDatabase::class.java,
                     "notice-tracker.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { INSTANCE = it }
+                ).addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6
+                ).build().also { INSTANCE = it }
             }
     }
 }
