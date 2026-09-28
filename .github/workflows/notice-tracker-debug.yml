@@ -17,8 +17,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply Apper-inspired native UI migration
+      - name: Keep earlier native UI migration idempotent
         run: python3 .github/scripts/apply_apper_native_ui.py
+
+      - name: Apply process-server allotment and receive workflow
+        run: python3 .github/scripts/apply_process_server_workflow.py
 
       - uses: actions/setup-java@v5
         with:
@@ -40,7 +43,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: NoticeTracker-v0.7.0-apper-ui-debug
+          name: NoticeTracker-v0.8.0-process-workflow-debug
           path: noticeapp/build/outputs/apk/debug/noticeapp-debug.apk
           if-no-files-found: error
 
@@ -54,6 +57,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add noticeapp/src/main/java/com/knowyourcase/notice/MainActivity.kt noticeapp/build.gradle
-          git commit -m "Apply Apper-inspired native navigation and return-scan workflow"
+          git add noticeapp/src/main/java/com/knowyourcase/notice/MainActivity.kt noticeapp/src/main/java/com/knowyourcase/notice/NoticeDatabase.kt noticeapp/build.gradle
+          git commit -m "Add process-server allotment and receive workflow"
           git push origin HEAD:notice-tracker-debug
