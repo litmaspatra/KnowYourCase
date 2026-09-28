@@ -410,8 +410,11 @@ class MainActivity : AppCompatActivity() {
                     "Nothing needs attention",
                     "New or unassigned notices will appear here.",
                     R.drawable.ic_nt_empty,
-                    "Scan a notice"
-                ) { scanner.launch(android.content.Intent(this@MainActivity, ModernScannerActivity::class.java)) },
+                    "Open Allot"
+                ) {
+                    activeTab = TAB_SERVERS
+                    bottomNav.selectedItemId = TAB_SERVERS
+                },
                 lp(bottom = UiTokens.Space.LG)
             )
         } else {
@@ -433,8 +436,11 @@ class MainActivity : AppCompatActivity() {
                     "No notices yet",
                     "Scan your first court notice to begin.",
                     R.drawable.ic_nt_empty,
-                    "Scan a notice"
-                ) { scanner.launch(android.content.Intent(this@MainActivity, ModernScannerActivity::class.java)) }
+                    "Open Allot"
+                ) {
+                    activeTab = TAB_SERVERS
+                    bottomNav.selectedItemId = TAB_SERVERS
+                }
             )
         } else {
             notices.take(4).forEach { root.addView(recentRow(it), lp(bottom = UiTokens.Space.XS)) }
@@ -617,9 +623,10 @@ class MainActivity : AppCompatActivity() {
                     titleText,
                     messageText,
                     R.drawable.ic_nt_empty,
-                    if (trackerFilter == "COMPLETED") null else "Scan a notice"
+                    if (trackerFilter == "COMPLETED") null else "Open Allot"
                 ) {
-                    scanner.launch(android.content.Intent(this@MainActivity, ModernScannerActivity::class.java))
+                    activeTab = TAB_SERVERS
+                    bottomNav.selectedItemId = TAB_SERVERS
                 }
             )
         } else {
@@ -972,7 +979,7 @@ class MainActivity : AppCompatActivity() {
         }, lp(bottom = UiTokens.Space.LG))
 
         root.addView(sectionTitle("Process server report"))
-        val servers = processServers()
+        val servers = (processServers() + notices.map { it.processServer }.filter { it.isNotBlank() }).distinct()
         if (servers.isEmpty()) {
             root.addView(statePanel(StateKind.EMPTY, "No process servers", "Add process servers from the Allot tab first.", R.drawable.ic_nt_people))
         } else {
@@ -1691,6 +1698,7 @@ class MainActivity : AppCompatActivity() {
                 saveNotice(
                     n.copy(
                         processServer = servers[which],
+                        allottedAt = if (n.allottedAt > 0L) n.allottedAt else System.currentTimeMillis(),
                         updatedAt = System.currentTimeMillis()
                     ),
                     successMessage = "Assigned to " + servers[which]
@@ -2374,11 +2382,12 @@ class MainActivity : AppCompatActivity() {
         step("2", "Allot", "Open a process server and scan notices there so assignment is automatic.")
         step("3", "Receive", "Use the third tab to scan returned notices and mark each Served or Unserved.")
 
-        body.addView(primaryButton("Scan first notice", R.drawable.ic_nt_scan) {
+        body.addView(primaryButton("Set up process servers", R.drawable.ic_nt_people) {
             prefs.edit().putBoolean(KEY_ONBOARDED, true).apply()
             sheet.dismiss()
             requestNotificationPermission()
-            scanner.launch(android.content.Intent(this, ModernScannerActivity::class.java))
+            activeTab = TAB_SERVERS
+            bottomNav.selectedItemId = TAB_SERVERS
         }, lp(top = UiTokens.Space.LG))
 
         body.addView(outlineButton("Not now") {
