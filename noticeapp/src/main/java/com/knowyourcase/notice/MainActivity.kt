@@ -1680,9 +1680,9 @@ class MainActivity : AppCompatActivity() {
         if (servers.isEmpty()) {
             MaterialAlertDialogBuilder(this)
                 .setTitle("No Process Servers")
-                .setMessage("Add process-server names from the Servers tab first.")
+                .setMessage("Add process-server names from the Allot tab first.")
                 .setNegativeButton("Cancel", null)
-                .setPositiveButton("Open servers") { _, _ ->
+                .setPositiveButton("Open Allot") { _, _ ->
                     activeTab = TAB_SERVERS
                     bottomNav.selectedItemId = TAB_SERVERS
                     renderCurrentTab()
@@ -2168,7 +2168,9 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("Done", null)
             .create()
         dialog.setOnDismissListener {
-            if (activeTab == TAB_SETTINGS) renderCurrentTab()
+            if (activeTab == TAB_SETTINGS || activeTab == TAB_SERVERS || activeTab == TAB_RECEIVE) {
+                renderCurrentTab()
+            }
         }
         dialog.show()
     }
@@ -2339,7 +2341,7 @@ class MainActivity : AppCompatActivity() {
             applyType(TextRole.HEADLINE, true)
         })
         body.addView(TextView(this).apply {
-            text = "Scan the notice, assign a process server, then close the work as Served or Unserved."
+            text = "Add process servers, allot notices from inside each name, then scan returned notices from the Receive tab."
             applyType(TextRole.BODY)
             setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
             setPadding(0, dp(UiTokens.Space.XS), 0, dp(UiTokens.Space.LG))
