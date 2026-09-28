@@ -26,6 +26,9 @@ jobs:
       - name: Final process-workflow hardening
         run: python3 .github/scripts/finalize_process_workflow.py
 
+      - name: Stabilize batch scanning and serialize case-detail fetching
+        run: python3 .github/scripts/fix_batch_fetch_stability.py
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -46,7 +49,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: NoticeTracker-v0.8.0-process-workflow-debug
+          name: NoticeTracker-v0.8.1-batch-stability-debug
           path: noticeapp/build/outputs/apk/debug/noticeapp-debug.apk
           if-no-files-found: error
 
@@ -61,5 +64,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add noticeapp/src/main/java/com/knowyourcase/notice/MainActivity.kt noticeapp/src/main/java/com/knowyourcase/notice/NoticeDatabase.kt noticeapp/build.gradle
-          git commit -m "Finalize process-server allotment and receive workflow"
+          git commit -m "Stabilize batch scanning and serialized fetch queue"
           git push origin HEAD:notice-tracker-debug
